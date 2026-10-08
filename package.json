@@ -1,0 +1,66 @@
+{
+  "name": "ps5-game-launcher",
+  "productName": "PS5 Game Launcher",
+  "version": "1.0.0",
+  "description": "A controller-first game launcher for Windows with a PS5-style interface",
+  "main": "main/main.js",
+  "private": true,
+  "license": "MIT",
+  "author": "Aris",
+  "scripts": {
+    "start": "node scripts/build-native.js && electron .",
+    "dev": "node scripts/build-native.js && electron . --dev",
+    "build:native": "node scripts/build-native.js --force",
+    "dist": "node scripts/build-native.js && electron-builder --win",
+    "dist:dir": "node scripts/build-native.js && electron-builder --win dir"
+  },
+  "build": {
+    "appId": "com.ps5gamelauncher.app",
+    "productName": "PS5 Game Launcher",
+    "copyright": "Copyright © 2026 Aris",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main/**",
+      "!main/native/*.cs",
+      "!main/native/*.cmd",
+      "renderer/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "main/native/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "renderer/assets/icon.png",
+      "artifactName": "PS5-Game-Launcher-${version}-win-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PS5 Game Launcher",
+      "artifactName": "PS5-Game-Launcher-Setup-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}

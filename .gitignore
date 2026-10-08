@@ -1,0 +1,9 @@
+node_modules/
+dist/
+
+# Built from main/native/syshelper.cs by scripts/build-native.js
+main/native/syshelper.exe
+
+*.log
+.DS_Store
+Thumbs.db

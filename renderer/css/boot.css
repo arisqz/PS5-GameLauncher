@@ -1,0 +1,424 @@
+/* ------------------------------------------------------------------ */
+/* Boot stage: spotlight, haze and particles (behind the welcome UI)    */
+/* ------------------------------------------------------------------ */
+.boot-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #121319;
+  transition: opacity var(--leave, 0.7s) var(--ease);
+}
+
+.boot-stage.leave {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bs-base,
+.bs-beam,
+.bs-source,
+.bs-floor,
+.bs-particles,
+.bs-black {
+  position: absolute;
+  pointer-events: none;
+}
+
+.bs-base {
+  inset: 0;
+  background:
+    radial-gradient(ellipse 58% 66% at 15% 0%, rgba(128, 112, 108, 0.58), rgba(76, 68, 72, 0.26) 46%, transparent 80%),
+    radial-gradient(ellipse 70% 40% at 92% 30%, rgba(22, 24, 38, 0.9), transparent 70%),
+    linear-gradient(180deg, #1b1a20 0%, #15161d 50%, #191a22 80%, #22242d 100%);
+}
+
+/* The light cone: a soft ellipse rotated so it falls down and to the right. */
+.bs-beam {
+  left: -16%;
+  top: -10%;
+  width: 66%;
+  height: 125%;
+  transform-origin: 50% 0;
+  transform: rotate(-17deg);
+  background: radial-gradient(ellipse 40% 76% at 50% 0%, rgba(255, 236, 222, 0.42), rgba(255, 228, 212, 0.15) 38%, rgba(255, 228, 212, 0.05) 66%, transparent 86%);
+  filter: blur(1.4rem);
+  animation: beamBreath 7s ease-in-out infinite alternate;
+}
+
+/* Faint rays inside the cone, converging on the light. */
+.bs-shafts {
+  position: absolute;
+  inset: 0;
+  background: repeating-conic-gradient(
+    from 168deg at 50% -4%,
+    rgba(255, 240, 230, 0) 0deg 1.6deg,
+    rgba(255, 240, 230, 0.07) 2.6deg,
+    rgba(255, 240, 230, 0) 3.8deg 5.1deg
+  );
+  -webkit-mask: radial-gradient(ellipse 36% 58% at 50% 0%, #000 0%, rgba(0, 0, 0, 0.5) 45%, transparent 80%);
+  mask: radial-gradient(ellipse 36% 58% at 50% 0%, #000 0%, rgba(0, 0, 0, 0.5) 45%, transparent 80%);
+  animation: shaftDrift 14s ease-in-out infinite alternate;
+}
+
+.bs-source {
+  left: 3%;
+  top: -16%;
+  width: 28%;
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 242, 234, 0.62), rgba(255, 236, 226, 0.2) 55%, transparent);
+  filter: blur(1.6rem);
+}
+
+.bs-floor {
+  left: -10%;
+  right: -10%;
+  bottom: -6%;
+  height: 34%;
+  background:
+    radial-gradient(ellipse 46% 34% at 36% 72%, rgba(160, 166, 186, 0.2), transparent 75%),
+    radial-gradient(ellipse 70% 30% at 60% 88%, rgba(120, 126, 148, 0.14), transparent 75%);
+  filter: blur(1.2rem);
+}
+
+.bs-particles {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  transition: opacity 0.9s var(--ease);
+}
+
+.boot-stage.no-particles .bs-particles {
+  opacity: 0;
+}
+
+.bs-black {
+  inset: 0;
+  background: #000;
+  transition: opacity 1.4s var(--ease);
+}
+
+.boot-stage.lit .bs-black {
+  opacity: 0;
+}
+
+@keyframes beamBreath {
+  from { opacity: 0.86; }
+  to { opacity: 1; }
+}
+
+@keyframes shaftDrift {
+  from { transform: rotate(-1.2deg); }
+  to { transform: rotate(1.2deg); }
+}
+
+/* While the stage is up the views stay hidden; the home screen builds in
+   over it once a user is chosen. */
+body.booting #views {
+  visibility: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/* Welcome back / user select                                          */
+/* ------------------------------------------------------------------ */
+.welcome {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.ws-clock {
+  position: absolute;
+  top: 5rem;
+  right: 8rem;
+  font-size: 3.2rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-title,
+.ws-sub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-weight: 300;
+}
+
+.ws-title {
+  top: 14.4rem;
+  font-size: 5.6rem;
+  letter-spacing: 0.005em;
+}
+
+.ws-sub {
+  top: 23.6rem;
+  font-size: 2.9rem;
+  color: var(--text-2);
+}
+
+.ws-row {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ws-item {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 29rem;
+  margin-left: -14.5rem;
+  transform: translateX(var(--x, 0));
+  transition: transform 0.5s var(--ease-out), opacity 0.2s var(--ease);
+}
+
+.ws-av {
+  position: absolute;
+  top: 40rem;
+  left: 0;
+  width: 29rem;
+  height: 29rem;
+  border-radius: 50%;
+  pointer-events: auto;
+  transform: scale(0.724);
+  transition: transform 0.45s var(--ease-out), scale 0.3s var(--ease);
+  --fx-r: 14.5rem;
+  --fx-gap: 0.75rem;
+  --fx-w: 0.32rem;
+  --glint: 0.22;
+}
+
+.ws-item.sel .ws-av {
+  transform: none;
+}
+
+.ws-av::after {
+  border-radius: 50%;
+}
+
+.ws-avatar {
+  width: 100%;
+  height: 100%;
+  font-size: 29rem;
+}
+
+.ws-plus {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 9rem;
+  color: #fff;
+}
+
+.ws-plus svg.ic {
+  stroke-width: 2.2;
+}
+
+.ws-name {
+  position: absolute;
+  top: 71.6rem;
+  left: -4rem;
+  right: -4rem;
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 300;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.3s var(--ease), opacity 0.2s var(--ease);
+}
+
+.ws-item.ws-add:not(.sel) .ws-name {
+  color: var(--text-3);
+}
+
+.ws-opt {
+  position: absolute;
+  top: 77.2rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  font-size: 2.4rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease);
+}
+
+.ws-pad {
+  position: absolute;
+  top: 32.6rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 4.4rem;
+  opacity: 0;
+  transition: opacity 0.25s var(--ease);
+}
+
+.ws-pad span {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ws-item.ws-user.sel .ws-opt {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ws-item.ws-user.sel .ws-pad {
+  opacity: 1;
+}
+
+.ws-power {
+  position: absolute;
+  left: 50%;
+  bottom: 3rem;
+  width: 7.4rem;
+  height: 7.4rem;
+  margin-left: -3.7rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 3.8rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  transition: background 0.25s;
+  --fx-r: 3.7rem;
+}
+
+.ws-power.focused {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ws-select {
+  position: absolute;
+  right: 4.6rem;
+  bottom: 3.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 2.4rem;
+  font-weight: 600;
+}
+
+/* Build-in: the title, then the avatars pop up one by one, then the rest. */
+.welcome .ws-title,
+.welcome .ws-sub,
+.welcome .ws-clock,
+.welcome .ws-name,
+.welcome .ws-power,
+.welcome .ws-select,
+.welcome .ws-av {
+  opacity: 0;
+}
+
+.welcome.in .ws-title,
+.welcome.in .ws-sub,
+.welcome.in .ws-clock,
+.welcome.in .ws-name,
+.welcome.in .ws-power,
+.welcome.in .ws-select,
+.welcome.in .ws-av {
+  opacity: 1;
+}
+
+.welcome.in .ws-title {
+  animation: wsFade 0.7s var(--ease) 0.35s backwards;
+}
+
+.welcome.in .ws-av {
+  animation: wsPop 0.62s var(--ease-out) calc(0.55s + var(--i) * 0.07s) backwards;
+}
+
+.welcome.in .ws-sub,
+.welcome.in .ws-clock,
+.welcome.in .ws-name,
+.welcome.in .ws-power,
+.welcome.in .ws-select {
+  animation: wsFade 0.5s var(--ease) 0.85s backwards;
+}
+
+.welcome:not(.ready) .ws-opt,
+.welcome:not(.ready) .ws-pad,
+.welcome:not(.ready) .fx::before {
+  opacity: 0 !important;
+}
+
+@keyframes wsFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes wsPop {
+  from { opacity: 0; scale: 0.45; }
+  to { opacity: 1; scale: 1; }
+}
+
+/* Leaving: the other users go first, then the chosen one and the text. */
+.welcome.chosen .ws-item:not(.sel),
+.welcome.chosen .ws-name,
+.welcome.chosen .ws-opt,
+.welcome.chosen .ws-pad {
+  opacity: 0 !important;
+  transition: opacity 0.15s var(--ease);
+}
+
+.welcome.out .ws-title,
+.welcome.out .ws-sub,
+.welcome.out .ws-clock,
+.welcome.out .ws-power,
+.welcome.out .ws-select,
+.welcome.out .ws-item.sel {
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+
+.welcome.out .ws-item.sel .ws-av {
+  scale: 0.9;
+}
+
+/* Drag & drop */
+.drop-hint {
+  position: fixed;
+  inset: 2rem;
+  z-index: 800;
+  border: 0.4rem dashed rgba(255, 255, 255, 0.6);
+  border-radius: 3rem;
+  background: rgba(10, 20, 50, 0.6);
+  backdrop-filter: blur(1rem);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+  text-align: center;
+}
+
+.drop-hint.show {
+  opacity: 1;
+}
+
+.drop-hint b {
+  display: block;
+  font-size: 5rem;
+  font-weight: 300;
+}
+
+.drop-hint span {
+  font-size: 2.4rem;
+  color: var(--text-2);
+}

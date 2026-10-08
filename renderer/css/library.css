@@ -1,0 +1,293 @@
+/* ------------------------------------------------------------------ */
+/* Game Library (PS5 layout)                                           */
+/* ------------------------------------------------------------------ */
+.lib-view {
+  background:
+    radial-gradient(70% 80% at 85% 10%, rgba(70, 80, 110, 0.18), transparent 60%),
+    linear-gradient(180deg, rgba(4, 5, 10, 0.86), rgba(2, 3, 7, 0.94));
+}
+
+.lib-header {
+  position: absolute;
+  top: 4.8rem;
+  left: 4.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4.6rem;
+  animation: fadeIn 0.5s var(--ease) both;
+}
+
+.lib-badge {
+  width: 8rem;
+  height: 8rem;
+  border-radius: 1.4rem;
+  background: rgba(255, 255, 255, 0.07);
+  display: grid;
+  place-items: center;
+  font-size: 4.4rem;
+  color: #fff;
+}
+
+.lib-title {
+  font-size: 3.2rem;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+}
+
+.lib-tabs {
+  position: absolute;
+  top: 13.4rem;
+  left: 17.4rem;
+  display: flex;
+  gap: 2.4rem;
+  animation: fadeIn 0.5s var(--ease) 0.05s both;
+}
+
+.lib-tab {
+  position: relative;
+  font-size: 3.2rem;
+  font-weight: 300;
+  padding: 0.6rem 2rem;
+  margin-left: -2rem;
+  margin-right: 2rem;
+  border-radius: 1rem;
+  color: var(--text-4);
+  transition: color 0.25s, background 0.25s;
+  --fx-r: 1rem;
+  --fx-gap: 0.2rem;
+  --glint: 0.16;
+}
+
+.lib-tab.active {
+  color: #fff;
+}
+
+.lib-tab.focused {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Round sort / filter button left of the grid */
+.lib-filter {
+  position: absolute;
+  top: 33.6rem;
+  left: 5.3rem;
+  width: 7.4rem;
+  height: 7.4rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 3.4rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  transition: background 0.2s, color 0.2s, transform 0.3s var(--ease-out), top 0.5s var(--ease-out);
+  --fx-r: 3.7rem;
+  --fx-gap: 0.35rem;
+  --glint: 0.3;
+}
+
+.lib-filter.focused {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+  transform: scale(1.04);
+}
+
+
+.lib-filter.filtered {
+  box-shadow: inset 0 0 0 0.25rem var(--blue);
+}
+
+/* Grid */
+.lib-grid-wrap {
+  position: absolute;
+  top: 25.2rem;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 2.2rem, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 2.2rem, #000 100%);
+}
+
+.lib-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 29.6rem);
+  gap: 2.5rem;
+  padding: 2.8rem 17.4rem 14rem;
+  transition: transform calc(0.5s * var(--spd)) var(--ease-out);
+}
+
+.lib-tile {
+  position: relative;
+  display: block;
+  width: 29.6rem;
+  height: 29.6rem;
+  border-radius: 0.6rem;
+  text-align: left;
+  --fx-r: 0.6rem;
+  --fx-gap: 0.5rem;
+  --fx-w: 0.3rem;
+  --glint: 0.34;
+  transition: transform 0.35s var(--ease-out);
+}
+
+.lib-grid.stagger .lib-tile {
+  animation: fadeUp 0.55s var(--ease-out) both;
+  animation-delay: calc(var(--i) * 22ms);
+}
+
+.lt-art {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0.8rem 2.4rem rgba(0, 0, 0, 0.35);
+}
+
+.lib-tile.focused {
+  transform: scale(1.02);
+}
+
+.lib-tile.focused .lt-art {
+  box-shadow: 0 1.6rem 3.6rem rgba(0, 0, 0, 0.55);
+}
+
+/* Name + store badge, only on the focused cover */
+.lt-info {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 7rem 2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.2rem;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 45%, rgba(0, 0, 0, 0.82) 100%);
+  opacity: 0;
+  transform: translateY(1.2rem);
+  transition: opacity 0.25s var(--ease), transform 0.35s var(--ease-out);
+}
+
+.lib-tile.focused .lt-info {
+  opacity: 1;
+  transform: none;
+}
+
+.lt-badge {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0.4rem 0.9rem;
+  border: 0.15rem solid rgba(255, 255, 255, 0.85);
+  border-radius: 0.3rem;
+  color: #fff;
+}
+
+.lt-name {
+  width: 100%;
+  font-size: 2.3rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lt-fav {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  color: #ffd166;
+}
+
+.lt-fav svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.lib-empty {
+  position: absolute;
+  top: 34rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  animation: fadeUp 0.5s var(--ease-out) both;
+}
+
+.le-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 5.6rem;
+  color: var(--text-2);
+  margin-bottom: 3rem;
+}
+
+.le-title {
+  font-size: 4.4rem;
+  font-weight: 300;
+}
+
+.le-text {
+  margin-top: 1.4rem;
+  font-size: 2.3rem;
+  color: var(--text-3);
+}
+
+.set-hints {
+  position: absolute;
+  right: 7rem;
+  bottom: 4.4rem;
+}
+
+.hubv-hints {
+  position: absolute;
+  right: 7rem;
+  top: 8.4rem;
+  transition: opacity 0.3s var(--ease);
+}
+
+/* Stand-alone hub view ---------------------------------------------- */
+.hub-view .hubv-scroller {
+  position: absolute;
+  inset: 0;
+  transition: transform calc(0.6s * var(--spd)) var(--ease-out);
+}
+
+.hub-view.scrolled .hubv-scroller {
+  transform: translateY(-50rem);
+}
+
+.hubv-title {
+  position: absolute;
+  top: 9rem;
+  left: 17.4rem;
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  font-size: 3rem;
+  animation: fadeUp 0.5s var(--ease-out) both;
+}
+
+.hub-view .hub-main {
+  top: 18rem;
+}
+
+.hub-view .hub-cards {
+  top: 86rem;
+}
+
+.hub-view.scrolled .hubv-hints {
+  opacity: 0;
+}
+

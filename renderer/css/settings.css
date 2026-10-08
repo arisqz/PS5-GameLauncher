@@ -1,0 +1,437 @@
+/* The animated theme background (the one behind the Steam Store tile) shows
+   through a dark, light-raked veil. */
+.settings-view {
+  background: transparent;
+}
+
+.set-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(40% 55% at 4% -8%, rgba(255, 255, 255, 0.2), transparent 70%),
+    radial-gradient(70% 90% at 6% -18%, rgba(255, 255, 255, 0.1), transparent 62%),
+    linear-gradient(180deg, rgba(30, 32, 38, 0.62) 0%, rgba(22, 24, 29, 0.7) 50%, rgba(16, 17, 21, 0.8) 100%);
+}
+
+.set-bg::before {
+  content: "";
+  position: absolute;
+  left: -25%;
+  top: -45%;
+  width: 95%;
+  height: 130%;
+  background: conic-gradient(from 105deg at 18% 2%, transparent 0deg, rgba(255, 255, 255, 0.15) 8deg, transparent 18deg, rgba(255, 255, 255, 0.08) 27deg, transparent 36deg, rgba(255, 255, 255, 0.12) 47deg, transparent 60deg, rgba(255, 255, 255, 0.06) 70deg, transparent 82deg);
+  filter: blur(1.8rem);
+  animation: raysDrift 14s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes raysDrift {
+  from { transform: rotate(-2deg) translateX(-1%); opacity: 0.85; }
+  to { transform: rotate(2.5deg) translateX(1%); opacity: 1; }
+}
+
+/* Root list ------------------------------------------------------------ */
+.set-root {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.3s var(--ease), transform 0.45s var(--ease-out);
+}
+
+.settings-view.in-page .set-root {
+  opacity: 0;
+  transform: translateX(-6rem);
+  pointer-events: none;
+}
+
+.set-root.enter {
+  animation: rootBack 0.45s var(--ease-out);
+}
+
+@keyframes rootBack {
+  from { opacity: 0; transform: translateX(-6rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.set-root-title,
+.set-title {
+  position: absolute;
+  left: 9.6rem;
+  top: 7.4rem;
+  font-size: 4.2rem;
+  font-weight: 300;
+  letter-spacing: 0.005em;
+}
+
+.set-root-wrap {
+  position: absolute;
+  top: 17.4rem;
+  bottom: 9rem;
+  left: 30rem;
+  width: 132.6rem;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 3rem), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 3rem), transparent 100%);
+}
+
+.set-root-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.8rem 0.4rem 3rem;
+  transition: transform calc(0.4s * var(--spd)) var(--ease-out);
+}
+
+.set-root-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 9.8rem;
+  padding: 0 2.8rem;
+  border-radius: 0.6rem;
+  text-align: left;
+  transition: background 0.18s, box-shadow 0.18s;
+  animation: fadeUp 0.45s var(--ease-out) both;
+}
+
+.set-root-item:nth-child(2) { animation-delay: 0.03s; }
+.set-root-item:nth-child(3) { animation-delay: 0.06s; }
+.set-root-item:nth-child(4) { animation-delay: 0.09s; }
+.set-root-item:nth-child(5) { animation-delay: 0.12s; }
+.set-root-item:nth-child(6) { animation-delay: 0.15s; }
+.set-root-item:nth-child(7) { animation-delay: 0.18s; }
+.set-root-item:nth-child(n + 8) { animation-delay: 0.21s; }
+
+.set-root-item.focused {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 0.2rem rgba(225, 228, 235, 0.82), 0 0 2.4rem rgba(255, 255, 255, 0.05);
+}
+
+.sri-icon {
+  width: 4rem;
+  height: 4rem;
+  margin-right: 2.8rem;
+  display: grid;
+  place-items: center;
+  font-size: 3.5rem;
+  color: #fff;
+}
+
+.sri-label {
+  font-size: 2.9rem;
+  font-weight: 400;
+}
+
+.set-scrollbar {
+  position: absolute;
+  top: 18.2rem;
+  left: 163.6rem;
+  width: 0.3rem;
+  height: 52rem;
+  border-radius: 0.15rem;
+  background: rgba(255, 255, 255, 0.08);
+  transition: opacity 0.3s;
+  overflow: hidden;
+}
+
+.set-scrollbar i {
+  display: block;
+  width: 100%;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.55);
+  transition: transform calc(0.4s * var(--spd)) var(--ease-out), height 0.3s;
+}
+
+/* Category page --------------------------------------------------------- */
+.set-page {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(6rem);
+  transition: opacity 0.35s var(--ease), transform 0.45s var(--ease-out);
+}
+
+.settings-view.in-page .set-page {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.set-nav {
+  position: absolute;
+  left: 17.4rem;
+  top: 18.4rem;
+  width: 40rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+.set-nav-item {
+  text-align: left;
+  font-size: 3rem;
+  padding: 1.4rem 2.2rem;
+  margin-left: -2.2rem;
+  border-radius: 1rem;
+  color: var(--text-4);
+  transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.set-nav-item.active {
+  color: #fff;
+}
+
+.set-nav-item.focused {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 0.2rem rgba(255, 255, 255, 0.9);
+}
+
+.set-page.enter .set-title {
+  animation: fadeUp 0.45s var(--ease-out) both;
+}
+
+.set-page.enter .set-nav-item {
+  animation: fadeUp 0.45s var(--ease-out) both;
+}
+
+.set-list-wrap {
+  position: absolute;
+  left: 63.7rem;
+  right: 16.5rem;
+  top: 14rem;
+  bottom: 9rem;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 6rem), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 6rem), transparent 100%);
+}
+
+.set-list-wrap.fade-top {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 9rem, #000 calc(100% - 6rem), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 9rem, #000 calc(100% - 6rem), transparent 100%);
+}
+
+.set-list {
+  display: flex;
+  flex-direction: column;
+  padding: 2.2rem 0.4rem 6rem;
+  transition: transform calc(0.4s * var(--spd)) var(--ease-out);
+}
+
+.set-list.enter > * {
+  animation: listIn 0.4s var(--ease-out) both;
+}
+
+.set-list.enter > *:nth-child(2) { animation-delay: 0.03s; }
+.set-list.enter > *:nth-child(3) { animation-delay: 0.06s; }
+.set-list.enter > *:nth-child(4) { animation-delay: 0.09s; }
+.set-list.enter > *:nth-child(5) { animation-delay: 0.12s; }
+.set-list.enter > *:nth-child(6) { animation-delay: 0.15s; }
+.set-list.enter > *:nth-child(n + 7) { animation-delay: 0.18s; }
+
+@keyframes listIn {
+  from { opacity: 0; transform: translateX(2.4rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.set-header {
+  font-size: 2.3rem;
+  color: var(--text-3);
+  padding: 4.2rem 2.6rem 1.4rem;
+}
+
+.set-header:first-child {
+  padding-top: 0.6rem;
+}
+
+.set-note {
+  font-size: 2.1rem;
+  line-height: 1.5;
+  color: var(--text-3);
+  padding: 2rem 2.6rem;
+}
+
+/* User Guide steps */
+.set-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  padding: 1.6rem 2.6rem;
+  font-size: 2.3rem;
+  line-height: 1.5;
+  color: var(--text-2);
+  text-align: left;
+  width: 100%;
+  border-radius: 1.2rem;
+  transition: background 0.2s, color 0.2s;
+}
+
+.set-step.focused {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.set-step .ss-num {
+  flex: none;
+  width: 3.8rem;
+  height: 3.8rem;
+  margin-top: -0.1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.9rem;
+  font-weight: 600;
+  color: #16181d;
+  background: radial-gradient(circle at 50% 30%, #ffffff 0%, #e6e7ea 55%, #c9cbd0 100%);
+}
+
+.set-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2.4rem;
+  min-height: 9.6rem;
+  padding: 0 2.6rem;
+  text-align: left;
+  border-radius: 1rem;
+  transition: background 0.18s, box-shadow 0.18s;
+}
+
+.set-item.focused {
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 0.2rem rgba(235, 238, 245, 0.92), 0 0 2.4rem rgba(255, 255, 255, 0.06);
+}
+
+.settings-view.nav-focus .set-item.focused {
+  box-shadow: none;
+  background: transparent;
+}
+
+.set-item.disabled {
+  opacity: 0.4;
+}
+
+.si-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 1.8rem;
+  font-size: 2.9rem;
+  min-width: 0;
+}
+
+.si-label > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.si-label svg {
+  width: 3rem;
+  height: 3rem;
+  color: var(--text-2);
+}
+
+.set-item.danger .si-label {
+  color: #ff9a9a;
+}
+
+.si-value {
+  font-size: 2.4rem;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  gap: 1.6rem;
+  max-width: 55%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.si-value.dim {
+  color: var(--text-3);
+}
+
+.si-value.path {
+  direction: rtl;
+  text-align: left;
+  display: block;
+}
+
+.si-chev {
+  font-size: 2.8rem;
+  color: var(--text-4);
+}
+
+.si-range {
+  width: 34rem;
+  gap: 2rem;
+  max-width: none;
+}
+
+.si-range .ps-slider {
+  flex: 1;
+}
+
+.si-num {
+  min-width: 6rem;
+  text-align: right;
+}
+
+/* ---- Focus ring / glint integration ---------------------------------- */
+/* Row separators are painted as a 1px background line so ::before/::after
+   stay free for the focus ring and glint. */
+.set-root-item {
+  --fx-r: 0.6rem;
+  background: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)) no-repeat 9.6rem 100% / calc(100% - 11.6rem) 1px;
+}
+
+.set-root-item:last-child,
+.set-root-item:has(+ .set-root-item.focused) {
+  background-size: 0 0;
+}
+
+.set-root-item.focused {
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+}
+
+.set-item {
+  --fx-r: 1rem;
+  background: linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07)) no-repeat 2.6rem 100% / calc(100% - 5.2rem) 1px;
+}
+
+.set-item:has(+ .set-item.focused) {
+  background-size: 0 0;
+}
+
+.set-item.focused {
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+}
+
+.set-nav-item {
+  position: relative;
+  --fx-r: 1rem;
+}
+
+.set-nav-item.focused {
+  box-shadow: none;
+}
+
+.si-value.ok {
+  color: #7ee2a0;
+}
+
+.si-value.busy {
+  color: var(--text-2);
+}
+
+.set-header .spinner.sm {
+  display: inline-block;
+  vertical-align: -0.3rem;
+  margin-left: 1.4rem;
+  width: 2rem;
+  height: 2rem;
+  border-width: 0.22rem;
+}

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" class="overlay-mode">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' app: data: blob: https://*.steamstatic.com https://*.steampowered.com https://*.akamaihd.net https://cdn.discordapp.com; media-src 'self' blob: data:; connect-src 'self' app:; font-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PS5 Game Launcher Overlay</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/quickmenu.css">
+  <link rel="stylesheet" href="css/overlays.css">
+  <link rel="stylesheet" href="css/settings.css">
+  <style>
+    html.overlay-mode,
+    html.overlay-mode body {
+      background: transparent !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="overlays"></div>
+  <div id="toasts"></div>
+  <script type="module" src="js/overlay.js"></script>
+</body>
+</html>

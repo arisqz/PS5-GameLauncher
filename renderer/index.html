@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' app: data: blob: https://*.steamstatic.com https://*.steampowered.com https://*.akamaihd.net https://cdn.discordapp.com; media-src 'self' blob: data:; connect-src 'self' app:; font-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PS5 Game Launcher</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/library.css">
+  <link rel="stylesheet" href="css/settings.css">
+  <link rel="stylesheet" href="css/quickmenu.css">
+  <link rel="stylesheet" href="css/overlays.css">
+  <link rel="stylesheet" href="css/boot.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="bg-canvas"></canvas>
+    <div id="hero-bg">
+      <div class="hero-layer"></div>
+      <div class="hero-layer"></div>
+      <div class="hero-scrim"></div>
+    </div>
+    <main id="views"></main>
+  </div>
+  <div id="overlays"></div>
+  <div id="toasts"></div>
+  <div id="drag-strip">PS5 Game Launcher</div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

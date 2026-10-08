@@ -1,0 +1,883 @@
+/* ------------------------------------------------------------------ */
+/* Top bar                                                             */
+/* ------------------------------------------------------------------ */
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 7rem 0 7.4rem;
+  z-index: 5;
+  transition: opacity calc(0.45s * var(--spd)) var(--ease), transform calc(0.55s * var(--spd)) var(--ease-out);
+}
+
+
+.tb-tabs {
+  display: flex;
+  gap: 1rem;
+}
+
+.tb-tab {
+  font-size: 3.7rem;
+  font-weight: 400;
+  color: var(--text-3);
+  padding: 0.6rem 2rem;
+  border-radius: 1.2rem;
+  letter-spacing: 0.005em;
+  transition: color 0.25s, box-shadow 0.25s, background 0.25s;
+}
+
+.tb-tab.active {
+  color: #fff;
+}
+
+.tb-tab.focused {
+  box-shadow: var(--ring);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.tb-right {
+  display: flex;
+  align-items: center;
+  gap: 2.6rem;
+}
+
+.tb-icon {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 3.4rem;
+  color: #fff;
+  transition: background 0.25s, box-shadow 0.25s, transform 0.25s var(--ease);
+}
+
+/* Selected icon inverts (light disc, dark glyph), like the quick menu. */
+.tb-icon.focused {
+  background: radial-gradient(circle at 50% 30%, #ffffff 0%, #e6e7ea 55%, #c9cbd0 100%);
+  color: #16181d;
+  box-shadow: 0 0.6rem 1.8rem rgba(0, 0, 0, 0.45);
+  transform: scale(1.06);
+}
+
+/* The profile picture keeps its own colours and gets the ring instead. */
+.tb-icon.tb-profile.focused {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: var(--ring);
+}
+
+.tb-avatar {
+  width: 4.6rem;
+  height: 4.6rem;
+  font-size: 4.6rem;
+  box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.85);
+}
+
+.tb-profile {
+  position: relative;
+}
+
+.tb-clock {
+  font-size: 3.8rem;
+  font-weight: 300;
+  min-width: 11rem;
+  text-align: right;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroller (moves up when the cards are focused)                       */
+/* ------------------------------------------------------------------ */
+.home-scroller {
+  position: absolute;
+  inset: 0;
+  transition: transform calc(0.6s * var(--spd)) var(--ease-out);
+}
+
+.home-view.scrolled .home-scroller {
+  transform: translateY(-58rem);
+}
+
+.home-view.scrolled .topbar {
+  opacity: 0;
+  transform: translateY(-4rem);
+}
+
+/* ------------------------------------------------------------------ */
+/* Carousel                                                            */
+/* ------------------------------------------------------------------ */
+.carousel {
+  position: absolute;
+  top: 12.6rem;
+  left: 0;
+  right: 0;
+  height: 17rem;
+  transition: opacity 0.17s var(--ease), transform 0.17s var(--ease);
+}
+
+.carousel.switching,
+.tile-title.switching {
+  opacity: 0;
+  transform: translateX(-3rem);
+}
+
+.carousel.tab-in .tile-inner {
+  animation: tileIn calc(0.55s * var(--spd)) var(--ease-out) both;
+  animation-delay: calc(var(--i) * 30ms);
+}
+
+.tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16.8rem;
+  height: 16.8rem;
+  transform-origin: 0 0;
+  transition: transform calc(0.42s * var(--spd)) var(--ease-out), opacity calc(0.3s * var(--spd)) var(--ease);
+  cursor: pointer;
+}
+
+.tile.off {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tile-inner {
+  position: absolute;
+  inset: 0;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  background: rgba(30, 33, 42, 0.8);
+  box-shadow: 0 0.8rem 2.4rem rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.3s var(--ease), filter 0.3s;
+}
+
+.tile.sel .tile-inner {
+  box-shadow: 0 1.6rem 4rem rgba(0, 0, 0, 0.55);
+}
+
+.tile.focused .tile-inner {
+  box-shadow: 0 0 0 0.38rem #fff, 0 0 3.4rem rgba(255, 255, 255, 0.28), 0 1.6rem 4rem rgba(0, 0, 0, 0.55);
+}
+
+.tile.sel.focused .tile-inner {
+  animation: tilePop calc(0.45s * var(--spd)) var(--ease-out);
+}
+
+.tile-inner.press {
+  animation: tilePress 0.32s var(--ease) !important;
+}
+
+@keyframes tilePop {
+  0% { transform: scale(0.94); }
+  60% { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+
+@keyframes tilePress {
+  0%, 100% { transform: scale(1); }
+  45% { transform: scale(0.93); }
+}
+
+@keyframes tileIn {
+  from { opacity: 0; transform: translateX(14rem); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Boot build-in (HomeView.playBootIntro): everything but the tiles waits,
+   then the top bar drops in from above and the rest fades up. */
+.home-view.boot-in .topbar,
+.home-view.boot-in .tile-title,
+.home-view.boot-in .hub {
+  opacity: 0;
+  transition: none;
+}
+
+.home-view.boot-in .tile::before,
+.home-view.boot-in .tile::after {
+  opacity: 0 !important;
+  animation: none !important;
+}
+
+.home-view.boot-ring:not(.boot-top) .topbar,
+.home-view.boot-ring:not(.boot-title) .tile-title,
+.home-view.boot-ring:not(.boot-hub) .hub {
+  opacity: 0;
+}
+
+.home-view.boot-top .topbar {
+  animation: bootTopIn 0.75s var(--ease-out) both;
+}
+
+.home-view.boot-title .tile-title {
+  animation: fadeIn 0.5s var(--ease) both;
+}
+
+.home-view.boot-hub .hub {
+  animation: bootHubIn 0.75s var(--ease-out) both;
+}
+
+@keyframes bootTopIn {
+  from { opacity: 0; transform: translateY(-8rem); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes bootHubIn {
+  from { opacity: 0; transform: translateY(3rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.tile-running {
+  position: absolute;
+  right: 1.2rem;
+  bottom: 1.2rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 0.3rem rgba(0, 0, 0, 0.5), 0 0 1.2rem var(--green);
+}
+
+/* Tile art --------------------------------------------------------- */
+.tile-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.tile-art img {
+  display: block;
+}
+
+.tile-art.cover .ta-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tile-art.cover.pos-top .ta-img {
+  object-position: center 18%;
+}
+
+.tile-art.composite .ta-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.15);
+}
+
+.tile-art.composite .ta-shade {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(90% 70% at 50% 60%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.1) 70%);
+}
+
+.tile-art.composite .ta-logo {
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 14%;
+  bottom: 14%;
+  width: 82%;
+  height: 72%;
+  object-fit: contain;
+  filter: drop-shadow(0 0.3rem 0.8rem rgba(0, 0, 0, 0.7));
+}
+
+.tile-art.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.4rem;
+  text-align: center;
+}
+
+.tile-art.placeholder .ph-icon {
+  width: 4.8rem;
+  height: 4.8rem;
+  image-rendering: auto;
+  filter: drop-shadow(0 0.4rem 0.8rem rgba(0, 0, 0, 0.4));
+}
+
+.tile-art.placeholder .ph-name {
+  font-size: 1.9rem;
+  font-weight: 600;
+  line-height: 1.15;
+  max-height: 6.6rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.4);
+}
+
+.tile-art.special {
+  display: grid;
+  place-items: center;
+  font-size: 7.4rem;
+  color: #fff;
+}
+
+.library-art {
+  background: linear-gradient(160deg, rgba(64, 70, 86, 0.95), rgba(28, 31, 40, 0.95));
+}
+
+.store-art {
+  background: linear-gradient(150deg, #1f6fe0, #0b3fa8);
+}
+
+.media-art {
+  background: linear-gradient(150deg, #0d9488, #1e3a8a);
+}
+
+.add-art {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06));
+  backdrop-filter: blur(1rem);
+}
+
+.tile-art.special svg {
+  width: 0.62em;
+  height: 0.62em;
+  stroke-width: 1.4;
+}
+
+/* Title beside the selected tile ------------------------------------ */
+.tile-title {
+  position: absolute;
+  left: 36.6rem;
+  top: 25.4rem;
+  right: 8rem;
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  font-size: 3rem;
+  font-weight: 400;
+  white-space: nowrap;
+  transition: opacity 0.17s var(--ease), transform 0.17s var(--ease);
+}
+
+.tile-title .tt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0.2rem 1rem rgba(0, 0, 0, 0.5);
+}
+
+.tile-title.swap {
+  animation: titleSwap calc(0.45s * var(--spd)) var(--ease-out);
+}
+
+@keyframes titleSwap {
+  from { opacity: 0; transform: translateX(-1.6rem); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Hub (hero content + cards)                                          */
+/* ------------------------------------------------------------------ */
+.hub {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hub > * {
+  pointer-events: auto;
+}
+
+.hub-main {
+  position: absolute;
+  left: 17.4rem;
+  right: 10rem;
+  top: 33rem;
+  height: 58rem;
+}
+
+.hub-main.enter .hub-logo-wrap {
+  animation: logoIn calc(0.7s * var(--spd)) var(--ease-out) both;
+}
+
+.hub-main.enter .hub-desc {
+  animation: fadeUp calc(0.6s * var(--spd)) var(--ease-out) 0.08s both;
+}
+
+.hub-main.enter .hub-stats {
+  animation: fadeIn calc(0.6s * var(--spd)) var(--ease-out) 0.12s both;
+}
+
+@keyframes logoIn {
+  from { opacity: 0; transform: translateX(-3rem) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.hub-logo-wrap {
+  height: 22rem;
+  width: 64rem;
+  display: flex;
+  align-items: flex-end;
+  transform-origin: left bottom;
+}
+
+.hub-logo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: left bottom;
+  filter: drop-shadow(0 0.6rem 2rem rgba(0, 0, 0, 0.55));
+}
+
+.hub-title {
+  font-size: 6.6rem;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0.4rem 2.4rem rgba(0, 0, 0, 0.6);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hub-title.big {
+  font-size: 8rem;
+  font-weight: 300;
+}
+
+.hub-desc {
+  margin-top: 3rem;
+  max-width: 82rem;
+  font-size: 2.5rem;
+  line-height: 1.45;
+  color: var(--text-2);
+  text-shadow: 0 0.2rem 1rem rgba(0, 0, 0, 0.6);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 3.6rem;
+}
+
+.hub-desc.dim {
+  color: var(--text-3);
+}
+
+.hub-actions {
+  position: absolute;
+  left: 0;
+  top: 49rem;
+  display: flex;
+  gap: 1.8rem;
+  align-items: center;
+}
+
+.hub-btn {
+  height: 7.2rem;
+  padding: 0 4.2rem;
+  border-radius: 3.6rem;
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  font-size: 2.6rem;
+  font-weight: 500;
+  background: rgba(30, 32, 40, 0.74);
+  backdrop-filter: blur(1.4rem);
+  color: #fff;
+  transition: background 0.25s var(--ease), color 0.25s var(--ease), box-shadow 0.25s var(--ease), transform 0.3s var(--ease-out);
+}
+
+.hub-btn svg {
+  width: 2.8rem;
+  height: 2.8rem;
+}
+
+.hub-btn.primary {
+  min-width: 33rem;
+  justify-content: center;
+}
+
+.hub-btn.round {
+  width: 7.2rem;
+  padding: 0;
+  justify-content: center;
+}
+
+.hub-btn.focused {
+  background: #fff;
+  color: #0b0c10;
+  box-shadow: 0 0 0 0.32rem rgba(255, 255, 255, 0.45), 0 1rem 3rem rgba(0, 0, 0, 0.45);
+  transform: scale(1.04);
+}
+
+.hub-stats {
+  position: absolute;
+  right: 0;
+  top: 49.8rem;
+  display: flex;
+  gap: 1.6rem;
+}
+
+.pill.running {
+  color: #b9f7cd;
+}
+
+.pill .dot {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 1rem var(--green);
+}
+
+/* Cards row ---------------------------------------------------------- */
+.hub-cards {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 98rem;
+  height: 34rem;
+  overflow: hidden;
+  padding: 1rem 0;
+  transition: opacity 0.4s var(--ease);
+}
+
+.hub-cards-track {
+  display: flex;
+  gap: 3rem;
+  padding-left: 17.4rem;
+  transition: transform calc(0.5s * var(--spd)) var(--ease-out);
+}
+
+.home-view:not(.scrolled) .hub-cards {
+  opacity: 0.85;
+}
+
+.hub-card {
+  flex: none;
+  width: 50rem;
+  height: 30rem;
+  border-radius: 1.6rem;
+  background: rgba(24, 26, 33, 0.82);
+  backdrop-filter: blur(1.6rem);
+  text-align: left;
+  padding: 2.4rem 2.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  overflow: hidden;
+  position: relative;
+  transition: box-shadow 0.25s var(--ease), transform 0.35s var(--ease-out), background 0.25s;
+  animation: fadeUp 0.5s var(--ease-out) both;
+}
+
+.hub-card.focused {
+  box-shadow: var(--ring);
+  transform: scale(1.02);
+  background: rgba(36, 39, 48, 0.92);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  font-size: 2.4rem;
+  font-weight: 600;
+}
+
+.card-head svg {
+  width: 2.6rem;
+  height: 2.6rem;
+  color: var(--text-2);
+}
+
+.card-head em {
+  margin-left: auto;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-3);
+  font-size: 2rem;
+}
+
+.card-foot {
+  margin-top: auto;
+  font-size: 1.9rem;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.card-foot svg {
+  width: 1.9rem;
+  height: 1.9rem;
+}
+
+.stats3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+
+.stats3 > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.stats3 b {
+  font-size: 4rem;
+  font-weight: 300;
+  white-space: nowrap;
+}
+
+.stats3 span {
+  font-size: 1.8rem;
+  color: var(--text-3);
+}
+
+.about-text {
+  font-size: 2rem;
+  line-height: 1.5;
+  color: var(--text-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.shots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  flex: 1;
+}
+
+.shot {
+  border-radius: 0.8rem;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem 2.4rem;
+  font-size: 1.95rem;
+}
+
+.kv dt {
+  color: var(--text-3);
+}
+
+.kv dd {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kv.big {
+  font-size: 2.1rem;
+  margin-top: 2rem;
+}
+
+.kv.big dd {
+  white-space: normal;
+  word-break: break-all;
+}
+
+.mini-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.2rem;
+  margin-top: 1.2rem;
+}
+
+.mini-tile {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mini-tile .ph-name {
+  font-size: 1.2rem;
+}
+
+/* Now playing (Media tab) ------------------------------------------- */
+.np-head {
+  width: 120rem;
+  align-items: center;
+  gap: 4rem;
+}
+
+.np-cover {
+  flex: none;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 1.4rem;
+  object-fit: cover;
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.6);
+}
+
+.np-cover.empty {
+  display: grid;
+  place-items: center;
+  font-size: 9rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-3);
+}
+
+.np-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.np-app {
+  font-size: 1.9rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.np-title {
+  font-size: 6rem;
+  font-weight: 600;
+  line-height: 1.08;
+  text-shadow: 0 0.4rem 2.4rem rgba(0, 0, 0, 0.5);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.np-artist {
+  font-size: 2.8rem;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.np-progress {
+  margin-top: 4rem;
+  width: 86rem;
+  display: grid;
+  grid-template-columns: 7rem 1fr 7rem;
+  align-items: center;
+  gap: 2rem;
+  font-size: 2rem;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.np-progress .np-t1 {
+  text-align: right;
+}
+
+.np-bar .ps-slider {
+  cursor: pointer;
+}
+
+/* ---- Focus ring / glint integration ---------------------------------- */
+.tb-tab {
+  position: relative;
+  --fx-r: 1.2rem;
+  --fx-gap: 0.25rem;
+}
+
+.tb-tab.focused {
+  box-shadow: none;
+}
+
+.tb-icon {
+  --fx-r: 3rem;
+  --fx-gap: 0.3rem;
+}
+
+.tb-icon.focused {
+  box-shadow: none;
+}
+
+.tb-online {
+  position: absolute;
+  width: 1.3rem;
+  height: 1.3rem;
+  background: var(--green);
+  border-radius: 50%;
+  border: 0.25rem solid #0b0f19;
+  left: calc(50% + 1rem);
+  top: calc(50% + 1rem);
+}
+
+.tile {
+  --fx-r: 1.5rem;
+  --fx-gap: 0.5rem;
+  --fx-w: 0.32rem;
+  --glint: 0.34;
+}
+
+.tile.focused .tile-inner {
+  box-shadow: 0 1.6rem 4rem rgba(0, 0, 0, 0.55);
+}
+
+.hub-btn {
+  position: relative;
+  --fx-r: 3.6rem;
+  --fx-gap: 0.4rem;
+  --glint: 0.22;
+}
+
+.hub-btn.focused {
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.45);
+}
+
+.hub-card {
+  overflow: visible;
+  --fx-r: 1.6rem;
+  --glint: 0.14;
+}
+
+.hub-card > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.hub-card.focused {
+  box-shadow: none;
+}
+
+.hub-cards {
+  padding: 1.6rem 0;
+}
+
+.tile-art {
+  border-radius: inherit;
+}
+
+/* Game Library tile: see-through glass instead of a solid grey */
+.tile-library .tile-inner {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(1.4rem) saturate(1.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.library-art {
+  background: transparent;
+}
