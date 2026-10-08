@@ -1,3 +1,5 @@
+
+
 # PS5 Game Launcher
 
 A controller-first game launcher for Windows with a PS5-style interface: the welcome screen, the home carousel, the quick menu, the in-game overlay and the settings pages all look and move like the console's. It finds your Steam, Epic, Xbox, Ubisoft and shortcut-folder games, fetches their artwork, and starts them full screen.
@@ -6,7 +8,7 @@ Built with Electron and plain HTML, CSS and JavaScript (no framework, no build s
 
 > Not affiliated with or endorsed by Sony Interactive Entertainment. "PlayStation" and "PS5" are trademarks of Sony Interactive Entertainment Inc. Game artwork belongs to its respective owners.
 
-<!-- Video: on github.com, edit this README and drag an .mp4 onto this line; GitHub uploads it and puts its link here. -->
+[<!-- Video:. -->](https://github.com/user-attachments/assets/184ad38c-2798-4c07-b0ac-b1ebbed656d4)
 
 ![Home screen](docs/screenshots/home.png)
 
