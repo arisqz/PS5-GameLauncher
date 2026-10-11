@@ -18,7 +18,7 @@ export function avatarHtml(cls = '', profile = null) {
   const p = profile || { name: s.profileName, avatar: s.avatar, image: s.avatarImage };
   const bg = AVATARS[(p.avatar || 0) % AVATARS.length];
   if (p.image && /^app:\/\/avatar\//.test(p.image)) {
-    return `<div class="avatar has-image ${cls}" style="background:${bg}"><img class="av-img" src="${escapeHtml(p.image)}" alt="" draggable="false"></div>`;
+    return `<div class="avatar has-image ${cls}" style="background:${bg}"><img class="av-img" src="${escapeHtml(window.appUrl(p.image))}" alt="" draggable="false"></div>`;
   }
   const initial = escapeHtml((p.name || 'P').trim().charAt(0).toUpperCase() || 'P');
   return `<div class="avatar ${cls}" style="background:${bg}"><span class="av-initial">${initial}</span></div>`;

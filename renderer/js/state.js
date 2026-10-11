@@ -122,7 +122,7 @@ export function pushNotification(n) {
 export function artUrl(game, key) {
   const f = game && game.art && game.art[key];
   if (!f) return null;
-  return `app://art/${encodeURIComponent(game.id.replace(/[^a-z0-9_-]/gi, '_'))}/${encodeURIComponent(f)}?v=${game.artVersion || 0}`;
+  return window.appUrl(`app://art/${encodeURIComponent(game.id.replace(/[^a-z0-9_-]/gi, '_'))}/${encodeURIComponent(f)}?v=${game.artVersion || 0}`);
 }
 
 export function lastActive(g) {

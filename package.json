@@ -12,7 +12,10 @@
     "dev": "node scripts/build-native.js && electron . --dev",
     "build:native": "node scripts/build-native.js --force",
     "dist": "node scripts/build-native.js && electron-builder --win",
-    "dist:dir": "node scripts/build-native.js && electron-builder --win dir"
+    "dist:dir": "node scripts/build-native.js && electron-builder --win dir",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "build": {
     "appId": "com.ps5gamelauncher.app",
@@ -60,6 +63,7 @@
     }
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.2",
     "electron": "^44.5.1",
     "electron-builder": "^26.15.3"
   }

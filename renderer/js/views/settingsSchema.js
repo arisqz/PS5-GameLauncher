@@ -859,8 +859,15 @@ export function buildSchema(router) {
           label: 'Software',
           items: () => [
             { type: 'info', label: 'PS5 Game Launcher', value: state.info.version },
-            { type: 'info', label: 'Electron', value: state.info.electron },
-            { type: 'info', label: 'Chromium', value: state.info.chrome },
+            ...(state.info.tauri
+              ? [
+                  { type: 'info', label: 'Tauri', value: state.info.tauri },
+                  { type: 'info', label: 'WebView2', value: state.info.webview },
+                ]
+              : [
+                  { type: 'info', label: 'Electron', value: state.info.electron },
+                  { type: 'info', label: 'Chromium', value: state.info.chrome },
+                ]),
             { type: 'info', label: 'System', value: state.info.platform },
             { type: 'note', label: 'Game artwork and details are provided by Steam and (optionally) SteamGridDB. This launcher is not affiliated with Sony Interactive Entertainment or Valve.' },
           ],

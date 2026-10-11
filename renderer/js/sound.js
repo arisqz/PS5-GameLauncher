@@ -124,7 +124,7 @@ let pack = null; // { id, files: Set, ignore: Set, mappings, buffers: Map }
 let music = null; // { id, buffer }
 
 async function loadBuffer(id, file) {
-  const res = await fetch(`app://sounds/${encodeURIComponent(id)}/${encodeURIComponent(file)}`);
+  const res = await fetch(window.appUrl(`app://sounds/${encodeURIComponent(id)}/${encodeURIComponent(file)}`));
   if (!res.ok) throw new Error(file);
   return ensure().decodeAudioData(await res.arrayBuffer());
 }

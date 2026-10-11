@@ -1,0 +1,43 @@
+[package]
+name = "ps5-game-launcher"
+version = "1.0.0"
+description = "A controller-first game launcher for Windows with a PS5-style interface"
+authors = ["Aris"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.85"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["fs", "macros", "sync", "time"] }
+reqwest = { version = "0.13", features = ["json"] }
+regex = "1"
+sha1 = "0.11"
+base64 = "0.23"
+png = "0.18"
+winreg = "0.56"
+
+[dependencies.windows]
+version = "0.62"
+features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

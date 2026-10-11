@@ -11,3 +11,7 @@ Thumbs.db
 # PlayStation SST typeface (Sony / Monotype licence) - local use only, never publish
 sstfont/
 renderer/fonts/sst/
+
+# Tauri build output
+src-tauri/target/
+src-tauri/gen/
