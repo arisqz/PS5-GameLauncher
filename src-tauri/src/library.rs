@@ -682,6 +682,34 @@ pub fn update(app: &AppHandle, id: &str, patch: &Value) -> Value {
     done.unwrap_or(Value::Null)
 }
 
+/// Remember something about a game (e.g. the executable found for a direct start).
+pub fn set_field(app: &AppHandle, id: &str, key: &str, value: Value) {
+    with_game(app, id, |g| {
+        g.insert(key.into(), value);
+    });
+}
+
+/// The launcher is starting this game.
+pub fn note_launch(app: &AppHandle, id: &str) {
+    with_game(app, id, |g| {
+        let n = g.get("launchCount").and_then(|v| v.as_i64()).unwrap_or(0) + 1;
+        g.insert("lastPlayed".into(), json!(now_ms()));
+        g.insert("launchCount".into(), json!(n));
+    });
+    save(app);
+}
+
+/// A session ended (the game monitor counts it, however the game was started).
+pub fn add_playtime(app: &AppHandle, id: &str, minutes: i64) {
+    let found = with_game(app, id, |g| {
+        let total = g.get("playtime").and_then(|v| v.as_i64()).unwrap_or(0) + minutes;
+        g.insert("playtime".into(), json!(total));
+    });
+    if found.is_some() {
+        save(app);
+    }
+}
+
 pub fn remove(app: &AppHandle, id: &str) {
     {
         let l = launcher(app);

@@ -4,7 +4,7 @@
 //! renderer already handles like any failed call.
 
 use crate::util::{exists, send};
-use crate::{library, metadata, soundpacks, Launcher};
+use crate::{controller, discord, games, library, metadata, overlay, soundpacks, Launcher};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::LazyLock};
@@ -21,10 +21,11 @@ fn arg_str(args: &[Value], i: usize) -> String {
 }
 
 /// What the renderer gets as `state.window`.
-pub fn window_state(win: &WebviewWindow) -> Value {
+pub fn window_state(app: &AppHandle, win: &WebviewWindow) -> Value {
     json!({
         "fullscreen": win.is_fullscreen().unwrap_or(false),
-        "focused": win.is_focused().unwrap_or(false),
+        "focused": games::main_focused(app),
+        "maximized": win.is_maximized().unwrap_or(false),
     })
 }
 
@@ -93,10 +94,10 @@ pub async fn dispatch(app: AppHandle, win: WebviewWindow, channel: &str, args: V
         "state:get" => {
             let main = app.get_webview_window("main");
             Ok(json!({
-                "window": main.as_ref().map(window_state),
+                "window": main.as_ref().map(|w| window_state(&app, w)),
                 "settings": l.settings.lock().unwrap().data.clone(),
                 "games": l.library.lock().unwrap().data["games"].clone(),
-                "running": [],
+                "running": l.monitor.list(),
                 "info": info(&app, &l),
             }))
         }
@@ -127,8 +128,34 @@ pub async fn dispatch(app: AppHandle, win: WebviewWindow, channel: &str, args: V
             if let Some(fs) = patch.get("fullscreen").and_then(|v| v.as_bool()) {
                 if let Some(main) = app.get_webview_window("main") {
                     let _ = main.set_fullscreen(fs);
-                    send(&app, "window:state", json!({ "fullscreen": fs, "focused": main.is_focused().unwrap_or(false) }));
+                    send(&app, "window:state", json!({ "fullscreen": fs, "focused": games::main_focused(&app) }));
                 }
+            }
+            if let Some(on) = patch.get("launchAtStartup") {
+                if let Err(e) = crate::startup::set(on == &json!(true)) {
+                    eprintln!("[startup] {e}");
+                }
+            }
+            if patch.get("overlayHotkey").is_some() {
+                controller::apply_hotkey(&app);
+            }
+            if patch.get("pauseGames").is_some() {
+                games::schedule_pause(&app);
+            }
+            if patch.get("controllerPassthrough").is_some() {
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    controller::apply_passthrough(&app, true).await;
+                });
+            } else if let Some(mode) = patch.get("passthroughEmulation") {
+                let mode = mode.as_str().unwrap_or("dualsense").to_string();
+                if let Some(a) = l.system.passthrough_args.lock().unwrap().as_mut() {
+                    a["mode"] = json!(mode);
+                }
+                let sys = l.system.clone();
+                tauri::async_runtime::spawn(async move {
+                    let _ = sys.request("passthroughConfig", json!({ "mode": mode }), 8000).await;
+                });
             }
             // A store switched on or off: scan again.
             if ["scanSteam", "scanEpic", "scanXbox", "scanUbisoft"].iter().any(|k| patch.get(*k).is_some_and(|v| Some(v) != prev.get(*k))) {
@@ -193,7 +220,15 @@ pub async fn dispatch(app: AppHandle, win: WebviewWindow, channel: &str, args: V
         "steam:search" => Ok(json!(metadata::search_steam(&arg_str(&args, 0)).await.unwrap_or_default())),
 
         /* ---------------- Games ---------------- */
-        "game:update" => Ok(library::update(&app, &arg_str(&args, 0), &arg(&args, 1))),
+        "game:update" => {
+            let patch = arg(&args, 1);
+            let r = library::update(&app, &arg_str(&args, 0), &patch);
+            // Switching a running game to / from the real controller applies right away.
+            if patch.get("controllerMode").is_some() && l.settings.lock().unwrap().data["controllerPassthrough"] == true {
+                controller::apply_passthrough(&app, false).await;
+            }
+            Ok(r)
+        }
         "game:remove" => {
             library::remove(&app, &arg_str(&args, 0));
             Ok(Value::Null)
@@ -270,18 +305,183 @@ pub async fn dispatch(app: AppHandle, win: WebviewWindow, channel: &str, args: V
                     let _ = main.minimize();
                 }
                 Some("close") => app.exit(0),
+                Some("toggleMaximize") => {
+                    if main.is_maximized().unwrap_or(false) {
+                        let _ = main.unmaximize();
+                    } else {
+                        let _ = main.maximize();
+                    }
+                }
                 Some("toggleFullscreen") => {
                     let fs = !main.is_fullscreen().unwrap_or(false);
                     let _ = main.set_fullscreen(fs);
-                    send(&app, "window:state", json!({ "fullscreen": fs, "focused": main.is_focused().unwrap_or(false) }));
+                    send(&app, "window:state", json!({ "fullscreen": fs, "focused": games::main_focused(&app) }));
                     return Ok(json!({ "fullscreen": fs }));
                 }
                 _ => {}
             }
             Ok(json!({ "fullscreen": main.is_fullscreen().unwrap_or(false) }))
         }
-        "games:running" => Ok(json!([])),
+        /* ---------------- Running games ---------------- */
+        "games:running" => Ok(l.monitor.list()),
+        "game:launch" => games::launch(&app, &arg_str(&args, 0)).await,
+        "game:continue" => Ok(games::continue_game(&app, &arg_str(&args, 0)).await),
+        "game:close" => Ok(json!(games::close(&app, &arg_str(&args, 0), win.label() == "overlay").await)),
+
+        /* ---------------- In-game overlay and controller ---------------- */
+        "overlay:closed" => {
+            overlay::hide_now(&app, true).await;
+            Ok(Value::Null)
+        }
+        "overlay:navigate" => {
+            overlay::hide_now(&app, false).await;
+            games::show_launcher(&app, Some(arg(&args, 0))).await;
+            Ok(Value::Null)
+        }
+        "overlay:toggle" => {
+            overlay::toggle(&app, overlay::open_info(&app)).await;
+            Ok(Value::Null)
+        }
+        "notify:popup" => {
+            let n = arg(&args, 0);
+            if n.is_object() {
+                let s = |k: &str, d: &str| n[k].as_str().map(str::to_string).unwrap_or_else(|| d.to_string());
+                let duration = n["duration"].as_f64().filter(|d| *d > 0.0).unwrap_or(5000.0).min(15000.0) as u64;
+                let payload = json!({
+                    "title": s("title", ""), "body": s("body", ""), "icon": s("icon", "bell"),
+                    "image": n["image"].as_str(), "duration": duration, "kind": s("kind", "system"),
+                });
+                overlay::popup(&app, payload).await;
+            }
+            Ok(Value::Null)
+        }
+        "passthrough:status" => Ok(controller::status(&app).await),
+        "pad:fallback" => {
+            controller::set_fallback(&app, arg(&args, 0) == true).await;
+            Ok(Value::Null)
+        }
+        "game:launchCancel" => {
+            games::stop_watch(&app);
+            Ok(Value::Null)
+        }
+
+        /* ---------------- Media, volume, displays, Bluetooth (helper) ---------------- */
+        "sys:available" => Ok(json!(l.system.available())),
+        "sys:media" => l.system.media(&arg_str(&args, 0), &arg_str(&args, 1)).await,
+        "sys:mediaPlaying" => Ok(l.system.request("mediaPlaying", json!({}), 3000).await.unwrap_or(json!(false))),
+        "sys:mediaCmd" => {
+            let value = args.get(2).and_then(|v| v.as_f64()).unwrap_or(0.0);
+            l.system.request("mediaCmd", json!({ "app": arg_str(&args, 0), "action": arg_str(&args, 1), "value": value as i64 }), 8000).await
+        }
+        "sys:volume" => l.system.request("volume", json!({}), 8000).await,
+        "sys:setVolume" => l.system.set_volume(args.first().and_then(|v| v.as_f64()).unwrap_or(50.0)).await,
+        "sys:setMute" => l.system.request("setMute", json!({ "value": arg(&args, 0) == true }), 8000).await,
+        "sys:audioOutputs" => l.system.request("audioOutputs", json!({}), 8000).await,
+        "sys:setAudioOutput" => l.system.request("setAudioOutput", json!({ "device": arg_str(&args, 0) }), 8000).await,
+        "sys:brightness" => l.system.request("brightness", json!({}), 15000).await,
+        "sys:setBrightness" => {
+            let index = args.get(1).and_then(|v| v.as_i64()).unwrap_or(-1);
+            l.system.set_brightness(args.first().and_then(|v| v.as_f64()).unwrap_or(50.0), index).await
+        }
+        "sys:nightLight" => l.system.request("nightLight", json!({}), 8000).await,
+        "sys:setNightLight" => l.system.request("setNightLight", json!({ "value": arg(&args, 0) == true }), 8000).await,
+        "bt:state" => l.system.request("bt", json!({}), 20000).await,
+        "bt:radio" => l.system.request("btRadio", json!({ "value": arg(&args, 0) == true }), 20000).await,
+        "bt:connect" => {
+            let cmd = if arg(&args, 1) == true { "btConnect" } else { "btDisconnect" };
+            l.system.request(cmd, json!({ "address": arg(&args, 0) }), 15000).await
+        }
+        "bt:pair" => l.system.request("btPair", json!({ "device": arg(&args, 0) }), 70000).await,
+        "bt:unpair" => l.system.request("btUnpair", json!({ "device": arg(&args, 0) }), 35000).await,
+        "bt:scan" => {
+            let cmd = match arg_str(&args, 0).as_str() {
+                "start" => "btScanStart",
+                "stop" => "btScanStop",
+                _ => "btScan",
+            };
+            l.system.request(cmd, json!({}), 10000).await
+        }
+        "power:action" => {
+            use std::os::windows::process::CommandExt;
+            let run = |cmd: &str, a: &[&str]| {
+                let _ = std::process::Command::new(cmd).args(a).creation_flags(0x0800_0000).spawn();
+            };
+            match arg_str(&args, 0).as_str() {
+                "shutdown" => run("shutdown", &["/s", "/t", "0"]),
+                "restart" => run("shutdown", &["/r", "/t", "0"]),
+                "sleep" => run(
+                    "powershell",
+                    &["-NoProfile", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Application]::SetSuspendState(\"Suspend\", $false, $false)"],
+                ),
+                _ => {}
+            }
+            Ok(Value::Null)
+        }
+        /* ---------------- Sound themes ---------------- */
         "sounds:list" => Ok(Value::Array(soundpacks::list(&l.dirs.sounds))),
+        "sounds:browse" => soundpacks::browse(&arg(&args, 0)).await,
+        "sounds:download" => soundpacks::download(&l.dirs.sounds, &arg(&args, 0)).await,
+        "sounds:remove" => {
+            let id = arg_str(&args, 0);
+            soundpacks::remove(&l.dirs.sounds, &id);
+            // A removed pack that was in use goes back to the built-in sounds.
+            let saved = {
+                let mut st = l.settings.lock().unwrap();
+                let mut changed = false;
+                for k in ["soundPack", "musicPack"] {
+                    if st.data[k].as_str() == Some(id.as_str()) {
+                        st.data[k] = Value::Null;
+                        changed = true;
+                    }
+                }
+                if changed {
+                    let _ = st.save();
+                }
+                changed.then(|| st.data.clone())
+            };
+            if let Some(s) = saved {
+                send(&app, "settings:changed", s);
+            }
+            Ok(json!(true))
+        }
+        "sounds:installLocal" => {
+            let source = if arg_str(&args, 0) == "folder" {
+                pick_folder(&app, &win, "Choose a sound pack").await
+            } else {
+                pick_file(&app, &win, "Choose a sound pack", "Sound pack", &["zip"]).await
+            };
+            let Some(source) = source else { return Ok(Value::Null) };
+            let dir = l.dirs.sounds.clone();
+            tauri::async_runtime::spawn_blocking(move || soundpacks::install_local(&dir, &source)).await.map_err(|e| e.to_string())?
+        }
+
+        /* ---------------- Discord ---------------- */
+        "discord:state" => Ok(l.discord.public_state()),
+        "discord:setup" => discord::setup(&app, &arg(&args, 0)),
+        "discord:connect" => Ok(discord::connect(&app, true).await),
+        "discord:disconnect" => Ok(discord::disconnect(&app).await),
+        "discord:forget" => Ok(discord::forget(&app).await),
+        "discord:cmd" => discord::command(&app, &arg_str(&args, 0), &arg(&args, 1), &arg(&args, 2)).await,
+        "discord:openChat" => {
+            let id = match arg(&args, 0) {
+                Value::String(s) => s,
+                Value::Number(n) => n.to_string(),
+                _ => String::new(),
+            };
+            discord::open_chat(&app, &id).await
+        }
+        "discord:closeChat" => {
+            discord::close_chat(&app);
+            Ok(Value::Null)
+        }
+        "discord:openInDiscord" => {
+            let id = match arg(&args, 0) {
+                Value::String(s) => s,
+                Value::Number(n) => n.to_string(),
+                _ => String::new(),
+            };
+            Ok(json!(discord::open_in_discord(&app, &id, &arg(&args, 1))))
+        }
         _ => {
             #[cfg(debug_assertions)]
             eprintln!("[ipc] not ported yet: {channel}");

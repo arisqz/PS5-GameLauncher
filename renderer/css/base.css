@@ -233,6 +233,36 @@ html.windowed #drag-strip {
   display: block;
 }
 
+/* Window buttons in the title strip (the Tauri build has no native frame) */
+.caption-btns {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  height: 34px;
+}
+
+.caption-btns button {
+  width: 46px;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets";
+  font-size: 10px;
+  line-height: 34px;
+  transition: background 0.1s;
+}
+
+.caption-btns button:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.caption-btns button[data-act="close"]:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+
 html.windowed #app,
 html.windowed .overlay,
 html.windowed .boot {

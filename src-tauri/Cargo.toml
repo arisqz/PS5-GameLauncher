@@ -14,21 +14,26 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-tokio = { version = "1", features = ["fs", "macros", "sync", "time"] }
+tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "sync", "time"] }
 reqwest = { version = "0.13", features = ["json"] }
 regex = "1"
 sha1 = "0.11"
 base64 = "0.23"
 png = "0.18"
 winreg = "0.56"
+aes-gcm = "0.10"
+miniz_oxide = "0.9"
 
 [dependencies.windows]
 version = "0.62"
 features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  "Win32_Security_Cryptography",
   "Win32_Storage_FileSystem",
   "Win32_System_Com",
   "Win32_UI_Shell",
@@ -41,3 +46,11 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+
+# Debug builds: line numbers for our code only, no debug info for dependencies
+# (keeps target/ a few GB smaller).
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

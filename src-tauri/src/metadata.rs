@@ -13,6 +13,11 @@ const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) PS5GameLauncher/1.0"
 
 static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| reqwest::Client::builder().user_agent(UA).build().expect("http client"));
 
+/// The shared HTTP client (keeps connections alive between requests).
+pub fn client() -> &'static reqwest::Client {
+    &CLIENT
+}
+
 pub async fn sleep(ms: u64) {
     tokio::time::sleep(Duration::from_millis(ms)).await;
 }

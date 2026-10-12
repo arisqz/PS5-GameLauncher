@@ -134,3 +134,50 @@ unsafe fn icon_to_png(icon: HICON) -> Option<Vec<u8>> {
     }
     Some(out)
 }
+
+/* ---------------- Overlay window placement ---------------- */
+
+use windows::Win32::Foundation::{HWND, RECT};
+use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromRect, MONITORINFO, MONITOR_DEFAULTTOPRIMARY};
+use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW};
+
+/// The full rectangle (physical pixels) of the monitor showing most of the
+/// given rectangle; the primary monitor when there is none.
+pub fn monitor_rect(x: i32, y: i32, w: i32, h: i32) -> (i32, i32, i32, i32) {
+    unsafe {
+        let r = RECT { left: x, top: y, right: x + w.max(1), bottom: y + h.max(1) };
+        let mon = MonitorFromRect(&r, MONITOR_DEFAULTTOPRIMARY);
+        let mut info = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+        if GetMonitorInfoW(mon, &mut info).as_bool() {
+            let m = info.rcMonitor;
+            (m.left, m.top, m.right - m.left, m.bottom - m.top)
+        } else {
+            (0, 0, 1920, 1080)
+        }
+    }
+}
+
+fn hwnd(h: isize) -> HWND {
+    HWND(h as *mut c_void)
+}
+
+/// Show a window over a rectangle, topmost, without activating it.
+pub fn show_topmost_at(h: isize, (x, y, w, ht): (i32, i32, i32, i32)) {
+    unsafe {
+        let _ = SetWindowPos(hwnd(h), Some(HWND_TOPMOST), x, y, w, ht, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    }
+}
+
+/// Put a topmost window back on top of other topmost windows.
+pub fn raise_topmost(h: isize) {
+    unsafe {
+        let _ = SetWindowPos(hwnd(h), Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+    }
+}
+
+/// Hide a window shown with show_topmost_at (Tauri doesn't know it is visible).
+pub fn hide_window(h: isize) {
+    unsafe {
+        let _ = windows::Win32::UI::WindowsAndMessaging::ShowWindow(hwnd(h), windows::Win32::UI::WindowsAndMessaging::SW_HIDE);
+    }
+}

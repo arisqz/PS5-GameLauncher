@@ -99,7 +99,11 @@
   const { invoke } = tauri.core;
   const api = {};
   for (const [name, channel] of Object.entries(CHANNELS)) {
-    api[name] = (...args) => invoke('ipc', { channel, args });
+    // Rust errors arrive as strings; the UI expects Error objects (err.message).
+    api[name] = (...args) =>
+      invoke('ipc', { channel, args }).catch((e) => {
+        throw e instanceof Error ? e : new Error(typeof e === 'string' ? e : (e && e.message) || String(e));
+      });
   }
 
   // Dropped files: Tauri hands over paths itself (see the drag-drop event), so
@@ -123,5 +127,53 @@
     };
   };
 
+  // Games dropped onto the window: Tauri reports the paths itself (the page's
+  // own drop event carries no file paths). handlers: { enter, leave, drop(paths) }
+  api.onFileDrop = (handlers) => {
+    if (!tauri.webview) return;
+    tauri.webview.getCurrentWebview().onDragDropEvent((e) => {
+      const p = e.payload || {};
+      if (p.type === 'enter') handlers.enter && handlers.enter();
+      else if (p.type === 'leave') handlers.leave && handlers.leave();
+      else if (p.type === 'drop') handlers.drop && handlers.drop(p.paths || []);
+    });
+  };
+
   window.api = Object.freeze(api);
+
+  // The main window is frameless: in windowed mode the title strip gets the
+  // window buttons and can be dragged (Electron drew native buttons over it).
+  if (thisWindow.label === 'main') {
+    const setup = () => {
+      const strip = document.getElementById('drag-strip');
+      if (!strip) return;
+      strip.setAttribute('data-tauri-drag-region', '');
+      const btns = document.createElement('div');
+      btns.className = 'caption-btns';
+      const glyph = { minimize: '', toggleMaximize: '', close: '' };
+      for (const act of ['minimize', 'toggleMaximize', 'close']) {
+        const b = document.createElement('button');
+        b.dataset.act = act;
+        b.tabIndex = -1;
+        b.textContent = glyph[act];
+        b.addEventListener('click', () => api.windowAction(act));
+        btns.append(b);
+      }
+      strip.append(btns);
+      // Restore icon while maximized.
+      api.on('window:state', (w) => {
+        btns.querySelector('[data-act="toggleMaximize"]').textContent = w && w.maximized ? '' : '';
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
+    else setup();
+
+    // F11: full screen (Electron's main process handled this key).
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        api.windowAction('toggleFullscreen');
+      }
+    });
+  }
 })();

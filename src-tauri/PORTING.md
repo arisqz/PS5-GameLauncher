@@ -25,6 +25,9 @@ npm run tauri:build    # release build + NSIS installer
 npm start              # the Electron version, still here as the reference
 ```
 
+Debug builds leave out debug info for dependencies (`[profile.dev]` in Cargo.toml), which keeps
+`target/` around 2 GB instead of 8+ GB.
+
 Debug builds keep their data in `%APPDATA%\PS5 Game Launcher (Tauri dev)`,
 copied once from the Electron folder. Release builds use the real
 `%APPDATA%\PS5 Game Launcher`, so users keep their library when they switch.
@@ -46,16 +49,28 @@ Phase 2 – logic in Rust
 - [x] Artwork / metadata (`metadata.rs`): Steam store, SteamGridDB, Steam's local cache, exe icons (`winapi.rs`)
 - [x] Library actions: add/remove folder, add files, import, remove/restore, reset, custom art, re-match, refresh, cache size, Steam play time
 - [x] File dialogs (`tauri-plugin-dialog`), open folders / links (`tauri-plugin-opener`), profile pictures
-- [ ] Launching + game monitor (`launcher.js`, `gamemonitor.js`): starting screen, anti-cheat splash handling, pausing
-- [ ] Native helper (`system.js` + `native/syshelper.exe`): run as a sidecar first; media, volume, outputs, brightness, night light, Bluetooth, controller, passthrough
-- [ ] In-game overlay window (`overlay.js`): transparent, always on top, focus handling, pop-ups
-- [ ] Discord RPC (`discord.js`): named pipe, OAuth, voice, notifications, messages
-- [ ] Sound store (`soundpacks.js`): browse, download, unzip, install from file/folder, remove
-- [ ] Global shortcut, autostart, single instance, power actions
-- [ ] Drag-and-drop of games onto the window
-- [ ] Custom title bar (Electron's `titleBarOverlay`)
+- [x] Launching + game monitor (`launcher.rs`, `monitor.rs`, `games.rs`): Starting… cover, anti-cheat splash handling,
+      continue, close, pausing while the launcher is in front. Tested with a dummy game: detected, paused, resumed, closed.
+- [x] Native helper (`system.rs`): syshelper.exe as a child process (bundled as a resource in release);
+      media, volume, outputs, brightness, night light, Bluetooth, power
+- [x] Controller (`controller.rs`): Guide / PS button and Ctrl+Alt+Home (`tauri-plugin-global-shortcut`), buttons forwarded
+      to the overlay, passthrough (`passthrough:*`, `pad:fallback`). Tested: shortcut opens / closes the quick menu.
+      Not tested yet with a real controller or with passthrough on (needs HidHide, admin).
+- Note: launcher focus comes from the foreground window (checked every 250 ms), not Tauri's Focused event,
+  which misses the window coming back because WebView2's child window takes the focus.
+- [x] In-game overlay window (`overlay.rs`): transparent, always on top, on the game's monitor, takes focus and gives it
+      back, click-through pop-ups. Shown and hidden with plain Win32 calls (no activation), not Tauri's show/hide.
+- [x] Discord RPC (`discord.rs`): named pipe, OAuth + token refresh, voice, notifications, chats.
+      Tested: pipe + handshake with the running Discord. Sign-in / voice need a person to approve in Discord.
+      Secrets (`secure.rs`): new ones with DPAPI; Electron's safeStorage values are still read (tested).
+- [x] Sound store (`soundpacks.rs`): browse, download, unzip, install from file/folder, remove. Tested: browse, download, remove.
+- [x] Start with Windows (`startup.rs`, HKCU Run key) and single instance (`tauri-plugin-single-instance`). Tested.
+- [x] Drag-and-drop of games onto the window (Tauri drop events via `api.onFileDrop`). Not tested by hand yet.
+- [x] Frameless window: the title strip gets Windows-style buttons and is draggable (`data-tauri-drag-region`);
+      F11 full screen; closing the window quits (the overlay would keep the app alive). Tested.
 
 Phase 3 – finish
 - [ ] Replace the C# helper with Rust (`windows` crate), optional
-- [ ] NSIS installer, icons, version info (Aris)
+- [x] NSIS installer, icons, version info (Aris): `npm run tauri:build` →
+      `src-tauri/target/release/bundle/nsis/PS5 Game Launcher_1.0.0_x64-setup.exe` (3.2 MB; Electron's was ~100 MB)
 - [ ] Remove `main/`, Electron and electron-builder

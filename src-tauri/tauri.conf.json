@@ -4,7 +4,13 @@
   "version": "1.0.0",
   "identifier": "com.aris.ps5gamelauncher",
   "build": {
-    "frontendDist": "../renderer"
+    "frontendDist": "../renderer",
+    "beforeDevCommand": {
+      "script": "node scripts/build-native.js && node scripts/dev-server.js",
+      "wait": false
+    },
+    "beforeBuildCommand": "node scripts/build-native.js",
+    "devUrl": "http://localhost:1420"
   },
   "app": {
     "withGlobalTauri": true,
@@ -15,11 +21,21 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "publisher": "Aris",
     "copyright": "Copyright © 2026 Aris",
     "shortDescription": "PS5 Game Launcher",
     "longDescription": "A controller-first game launcher for Windows with a PS5-style interface",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../main/native/syshelper.exe": "syshelper.exe"
+    }
   }
 }

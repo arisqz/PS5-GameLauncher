@@ -362,6 +362,24 @@ function setupDragDrop() {
   let depth = 0;
   const hint = h('div', { class: 'drop-hint', html: `<div><b>${t('Drop to add games')}</b><span>${t('Shortcuts, executables or folders')}</span></div>` });
   document.body.append(hint);
+  const importDropped = async (paths) => {
+    if (!paths.length) return;
+    sfx.select();
+    const n = await api.importPaths(paths);
+    if (!n) pushNotification({ title: 'Nothing new to add', body: 'Those items are already in your library.', icon: 'info' });
+  };
+  // Tauri: the window reports dropped files with their paths.
+  if (api.onFileDrop) {
+    api.onFileDrop({
+      enter: () => hint.classList.add('show'),
+      leave: () => hint.classList.remove('show'),
+      drop: (paths) => {
+        hint.classList.remove('show');
+        importDropped(paths);
+      },
+    });
+    return;
+  }
   window.addEventListener('dragenter', (e) => {
     e.preventDefault();
     depth++;
@@ -376,12 +394,7 @@ function setupDragDrop() {
     e.preventDefault();
     depth = 0;
     hint.classList.remove('show');
-    const paths = [...(e.dataTransfer?.files || [])].map((f) => api.pathForFile(f)).filter(Boolean);
-    if (paths.length) {
-      sfx.select();
-      const n = await api.importPaths(paths);
-      if (!n) pushNotification({ title: 'Nothing new to add', body: 'Those items are already in your library.', icon: 'info' });
-    }
+    await importDropped([...(e.dataTransfer?.files || [])].map((f) => api.pathForFile(f)).filter(Boolean));
   });
 }
 
