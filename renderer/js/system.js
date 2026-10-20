@@ -29,6 +29,8 @@ export const sys = {
 const clock = { key: null, pos: 0, at: 0, playing: false, changedAt: 0 };
 let pending = null; // expected status after one of our own commands
 const playbackJobs = new Map(); // one serialized playback request per media app
+const PLAYBACK_COOLDOWN_MS = 500;
+const playbackAcceptedAt = new Map();
 
 function clockNow() {
   return clock.pos + (clock.playing ? (Date.now() - clock.at) / 1000 : 0);
@@ -127,10 +129,14 @@ export async function mediaCommand(action, value) {
   const m = sys.media;
   if (!m || !m.active) return;
   if (action === 'toggle') {
+    const now = Date.now();
+    // Ignore extra clicks before changing either the UI/clock or native playback.
+    // Keep the guard active for slow requests too; ignored clicks are not queued.
+    if (playbackJobs.has(m.app) || now - (playbackAcceptedAt.get(m.app) ?? -Infinity) < PLAYBACK_COOLDOWN_MS) return;
+    playbackAcceptedAt.set(m.app, now);
     // Optimistic update so the button responds instantly; the clock simply
     // freezes / resumes where it is.
     m.status = m.status === 'Playing' ? 'Paused' : 'Playing';
-    const now = Date.now();
     Object.assign(clock, { pos: clockNow(), at: now, playing: m.status === 'Playing', changedAt: now });
     emit('media', m);
     return requestPlayback(m);
