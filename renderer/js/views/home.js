@@ -235,8 +235,10 @@ export class HomeView {
       this.activateTile();
       return;
     }
-    this.focusZone('carousel');
-    this.select(i);
+    // A mouse click already animates the tile growing into selection.
+    // Don't add the controller-focus pop on top of that movement.
+    this.focusZone('carousel', null, true);
+    this.select(i, { pop: false });
   }
 
   layout(instant = false) {
@@ -300,7 +302,7 @@ export class HomeView {
   /* Focus                                                             */
   /* ---------------------------------------------------------------- */
 
-  select(i, { sound = true } = {}) {
+  select(i, { sound = true, pop = true } = {}) {
     if (i < 0 || i >= this.items.length || i === this.sel) return false;
     this.sel = i;
     this.selByTab[this.tab] = this.items[i].key;
@@ -311,6 +313,8 @@ export class HomeView {
     this.hub.setItem(cur);
     this.hubKey = cur.key;
     this.restoreFocusVisual();
+    // Only deliberate non-mouse selection changes get the focus pop.
+    if (pop && this.zone === 'carousel') replayClass(this.tileEls.get(cur.key)?.firstElementChild, 'pop');
     this.updateHeroSoon();
     return true;
   }
@@ -334,6 +338,10 @@ export class HomeView {
     if (zone === 'cards' && index !== null) this.hub.cardNav.set(index);
     if (changed && !fromMouse) sfx.move();
     this.restoreFocusVisual();
+    // Pop only when returning focus with keyboard/controller, not on mouse clicks.
+    if (changed && zone === 'carousel' && !fromMouse) {
+      replayClass(this.tileEls.get(this.items[this.sel]?.key)?.firstElementChild, 'pop');
+    }
   }
 
   restoreFocusVisual() {
@@ -405,7 +413,10 @@ export class HomeView {
     const it = this.items[this.sel];
     if (!it) return;
     const el = this.tileEls.get(it.key);
-    replayClass(el?.firstElementChild, 'press');
+    const inner = el?.firstElementChild;
+    // The press must end at rest, not reveal a queued focus pop afterwards.
+    inner?.classList.remove('pop');
+    replayClass(inner, 'press');
     // A game: what its main button says (Play Game, Continue, or Update when one is waiting).
     if (it.type === 'game') this.hub.item && this.hub.item.key === it.key ? this.hub.activateAction(0) : launchGame(it.game);
     else if (it.type === 'library' || it.type === 'media-empty') {
