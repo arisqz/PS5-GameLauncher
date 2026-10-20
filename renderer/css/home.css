@@ -167,13 +167,13 @@
   box-shadow: 0 0 0 0.38rem #fff, 0 0 3.4rem rgba(255, 255, 255, 0.28), 0 1.6rem 4rem rgba(0, 0, 0, 0.55);
 }
 
-.tile.sel.focused .tile-inner {
+.tile.sel.focused .tile-inner.pop {
   animation: tilePop calc(0.45s * var(--spd)) var(--ease-out);
 }
 
 /* Keep the same entry animation alive when focus adds/removes the pop.
    Entry uses translate; pop/press use transform, so they compose. */
-.carousel.tab-in .tile.sel.focused .tile-inner {
+.carousel.tab-in .tile.sel.focused .tile-inner.pop {
   animation: tileIn calc(0.55s * var(--spd)) var(--ease-out) both,
     tilePop calc(0.45s * var(--spd)) var(--ease-out);
   animation-delay: calc(var(--i) * 30ms), 0s;
