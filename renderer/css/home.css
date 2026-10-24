@@ -773,8 +773,10 @@
 .np-title {
   font-size: 6rem;
   font-weight: 600;
-  line-height: 1.08;
-  text-shadow: 0 0.4rem 2.4rem rgba(0, 0, 0, 0.5);
+  /* Leave room for descenders inside the two-line clipping box. */
+  line-height: 1.3;
+  /* Apply the shadow after line-clamp clipping so its edges stay soft. */
+  filter: drop-shadow(0 0.4rem 2.4rem rgba(0, 0, 0, 0.5));
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
