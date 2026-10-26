@@ -81,6 +81,15 @@
   height: 36rem;
 }
 
+/* Reserve room for a two-line game title and download status. */
+.qm-card.download .qc-img {
+  height: 21.6rem;
+}
+
+.qm-cards.active .qm-card.download.focused .qc-img {
+  height: 34.5rem;
+}
+
 .qm-card.anim {
   animation: qmCardIn 0.55s var(--ease-out) both;
 }
