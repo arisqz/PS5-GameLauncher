@@ -86,9 +86,10 @@ class SteamFriends {
     if (!/^[0-9A-Fa-f]{32}$/.test(text)) {
       throw new Error(fromClipboard ? 'The clipboard has no Steam Web API key (32 letters and numbers).' : 'A Steam Web API key is 32 letters and numbers (0-9, A-F).');
     }
-    this.creds.key = safeStorage.isEncryptionAvailable()
-      ? { enc: true, v: safeStorage.encryptString(text.toUpperCase()).toString('base64') }
-      : { enc: false, v: Buffer.from(text.toUpperCase(), 'utf8').toString('base64') };
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new Error('Secure storage isn’t available on this PC, so the Steam Web API key can’t be saved safely.');
+    }
+    this.creds.key = { enc: true, v: safeStorage.encryptString(text.toUpperCase()).toString('base64') };
     this.save();
     this.state.configured = true;
     this.state.error = null;
