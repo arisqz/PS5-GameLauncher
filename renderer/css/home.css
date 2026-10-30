@@ -195,8 +195,9 @@
   animation-delay: calc(var(--i) * 30ms), 0s !important;
 }
 
+/* Start at rest so returning to an already enlarged tile does not snap smaller. */
 @keyframes tilePop {
-  0% { transform: scale(0.94); }
+  0% { transform: scale(1); }
   60% { transform: scale(1.025); }
   100% { transform: scale(1); }
 }
