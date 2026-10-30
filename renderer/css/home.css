@@ -61,6 +61,10 @@
   place-items: center;
   font-size: 3.65rem;
   color: #fff;
+  /* Keep the resting state on the same transform layer as the hover zoom.
+     Dropping to transform:none can snap SVG edges when focus leaves. */
+  transform: scale(1);
+  will-change: transform;
   transition: background 0.25s, box-shadow 0.25s, transform 0.25s var(--ease);
 }
 
