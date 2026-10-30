@@ -6,9 +6,9 @@
 // while it plays.
 
 import { api, state, on, emit } from './state.js';
-import { decodeTheme, themeBuffer, playTheme, stopTheme, pauseTheme, setThemeVolume, setThemeLostHandler } from './sound.js';
+import { playTheme, stopTheme, pauseTheme, setThemeVolume, setThemeLostHandler } from './sound.js';
 
-const SETTLE = 900; // ms a game stays selected before its music is even looked up (scrolling past costs nothing)
+const SETTLE = 600; // ms a game stays selected before its music is even looked up (scrolling past costs nothing)
 const LINGER = 1500; // ms the menu music keeps waiting after theme music stops (the next game's may follow)
 
 let wanted = null; // the selected game's id
@@ -64,18 +64,36 @@ function request() {
   return null;
 }
 
-/** The track's audio, decoded: { key, buffer } or null. */
+// The last few songs, as blob: URLs (a few MB each), so going back to a game starts it at once.
+const urls = new Map(); // track key -> blob URL
+
+function keepUrl(key, bytes) {
+  const url = URL.createObjectURL(new Blob([bytes]));
+  urls.set(key, url);
+  while (urls.size > 8) {
+    const [old, oldUrl] = urls.entries().next().value;
+    urls.delete(old);
+    // Still playing (or fading out) through an audio element: let go of it a little later.
+    setTimeout(() => URL.revokeObjectURL(oldUrl), 10000);
+  }
+  return url;
+}
+
+/** The track's audio: { key, url } or null. */
 async function load(req) {
   try {
     const info = req.track || (await api.themeFind(req.id));
     if (!info) return null;
-    let buffer = themeBuffer(info.key);
-    if (!buffer) {
+    let url = urls.get(info.key);
+    if (url) {
+      urls.delete(info.key); // most recent last
+      urls.set(info.key, url);
+    } else {
       const bytes = req.track ? await api.themeTrackAudio(req.track) : await api.themeAudio(req.id);
       if (!bytes) return null;
-      buffer = await decodeTheme(info.key, bytes);
+      url = keepUrl(info.key, bytes);
     }
-    return { key: info.key, buffer };
+    return { key: info.key, url };
   } catch {
     return null;
   }
@@ -133,7 +151,7 @@ function update(delay = SETTLE) {
     pending = null;
     if (!a || !allowed()) return;
     setActive(true);
-    playTheme(a.key, a.buffer, volume(), back && back.key === a.key ? { offset: back.offset, fadeIn: 0.5 } : {});
+    playTheme(a.key, a.url, volume(), back && back.key === a.key ? { offset: back.offset, fadeIn: 0.5 } : {});
     playing = key;
     playingKey = a.key;
   }, back ? 120 : delay);

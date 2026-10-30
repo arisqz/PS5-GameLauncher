@@ -179,7 +179,9 @@ namespace PS5GameLauncher
                 case "dirWindows": return Fg.DirWindows(req.ContainsKey("dirs") ? ((System.Collections.ArrayList)req["dirs"]).Cast<object>().Select(o => Convert.ToString(o)).ToList() : new List<string>());
                 case "padForward": Pad.Forward = Bool(req, "value"); return true;
                 case "padInfo": return Pad.Info();
+                case "passthroughRate": return Passthrough.SetRate(Int(req, "usb", 0), Int(req, "bt", 0));
                 case "passthrough":
+                    if (req.ContainsKey("rateUsb")) Passthrough.SetRate(Int(req, "rateUsb", 0), Int(req, "rateBt", 0));
                     if (req.ContainsKey("mode")) Passthrough.Configure(Str(req, "mode"));
                     return Passthrough.Enable(Bool(req, "value"));
                 case "passthroughConfig": return Passthrough.Configure(Str(req, "mode"));
@@ -1836,6 +1838,8 @@ namespace PS5GameLauncher
             public bool VibrationV2; // the real pad takes the newer rumble encoding
             public byte[] Last = new byte[33]; // last DualSense-layout frame
             public byte[] Raw;       // last input report in USB layout (DualSense / Edge)
+            public long NextPush;    // capped polling rate: when the next stick/motion-only update may go
+            public long PushedButtons = -1; // buttons and d-pad of the last state the game got
             public int Battery = -1; // battery byte last given to the virtual pad
             public byte[] LastOut;   // last rumble / lights from a DualShock 4 / Xbox pad
             public PadWriter Out;
@@ -2175,7 +2179,35 @@ namespace PS5GameLauncher
             if (f == null) return;
             v.Last = f;
             if (IsDualSense(v)) v.Raw = RawReport(buf, n, v.Bluetooth);
+            if (!PushNow(v)) return;
             Push(v);
+        }
+
+        // Polling rate games get (Settings > Controllers), per connection; 0 = the pad's own.
+        static volatile int RateUsb, RateBt;
+
+        public static object SetRate(int usb, int bt)
+        {
+            RateUsb = Math.Max(0, usb);
+            RateBt = Math.Max(0, bt);
+            return true;
+        }
+
+        /// <summary>
+        /// With a capped rate, a press or release (buttons, d-pad) still goes at once;
+        /// sticks, triggers and motion at most once per period (the newest then).
+        /// </summary>
+        static bool PushNow(Virtual v)
+        {
+            int rate = v.Bluetooth ? RateBt : RateUsb;
+            if (rate <= 0) return true;
+            var f = v.Last;
+            long buttons = (long)BitConverter.ToUInt32(f, 4) | (long)f[8] << 32;
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+            if (buttons == v.PushedButtons && now < v.NextPush) return false;
+            v.PushedButtons = buttons;
+            v.NextPush = now + System.Diagnostics.Stopwatch.Frequency / rate;
+            return true;
         }
 
         /// <summary>

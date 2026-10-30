@@ -81,6 +81,9 @@ const DEFAULT_SETTINGS = {
   controllerPassthrough: false,
   // What the DualSense is shown to games as: dualsense | dualshock4 | xbox360
   passthroughEmulation: 'dualsense',
+  // Polling rate games get from the virtual pad, in Hz (0 = the controller's own)
+  padRateUsb: 0,
+  padRateBt: 0,
   // Interface typeface: system (Segoe UI) | sst (PlayStation's SST, from renderer/fonts/sst)
   font: 'system',
   // Sound themes (deckthemes.com audio packs): installed pack ids, or null for the built-in sounds
@@ -147,6 +150,10 @@ const MIME = {
 };
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// The launcher's own sound (game theme music, clips) isn't media for Windows:
+// no entry in its media controls, media keys stay with the player apps, and
+// the "another app is playing media" check doesn't see the launcher itself.
+app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService');
 
 /**
  * The launcher used to be called "ClaudeLauncher" and kept its data in
@@ -534,7 +541,7 @@ function start() {
       return passthrough.state;
     }
     passthroughWant = want;
-    const args = { value: want, mode: emulationFor() };
+    const args = { value: want, mode: emulationFor(), rateUsb: Number(settings.data.padRateUsb) || 0, rateBt: Number(settings.data.padRateBt) || 0 };
     appliedEmulation = args.mode;
     system.passthroughArgs = want ? args : null;
     let st = await system.request('passthrough', args, 15000).catch((err) => ({ enabled: false, error: err.message }));
@@ -798,6 +805,11 @@ function start() {
     }
     if ('controllerPassthrough' in patch) applyPassthrough();
     else if ('passthroughEmulation' in patch) applyEmulation();
+    if ('padRateUsb' in patch || 'padRateBt' in patch) {
+      const rate = { usb: Number(s.padRateUsb) || 0, bt: Number(s.padRateBt) || 0 };
+      if (system.passthroughArgs) Object.assign(system.passthroughArgs, { rateUsb: rate.usb, rateBt: rate.bt });
+      system.request('passthroughRate', rate).catch(() => {});
+    }
 
     if ('fullscreen' in patch && win) {
       win.setFullScreen(!!patch.fullscreen);

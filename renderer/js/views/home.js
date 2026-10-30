@@ -56,8 +56,8 @@ export class HomeView {
 
   build() {
     this.tabs = [h('button', { class: 'tb-tab fx', text: t('Games'), dataset: { tab: 'game' } }), h('button', { class: 'tb-tab fx', text: t('Media'), dataset: { tab: 'media' } })];
-    this.searchBtn = h('button', { class: 'tb-icon fx', html: icon('search'), title: 'Search' });
-    this.settingsBtn = h('button', { class: 'tb-icon fx', html: icon('settings'), title: 'Settings' });
+    this.searchBtn = h('button', { class: 'tb-icon fx', html: icon('tbSearch'), title: 'Search' });
+    this.settingsBtn = h('button', { class: 'tb-icon fx', html: icon('tbSettings'), title: 'Settings' });
     this.profileBtn = h('button', { class: 'tb-icon tb-profile fx', title: 'Profile' });
     this.clockEl = h('div', { class: 'tb-clock', dataset: { clock: '' } });
     this.topItems = [...this.tabs, this.searchBtn, this.settingsBtn, this.profileBtn];

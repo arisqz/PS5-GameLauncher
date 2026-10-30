@@ -1,6 +1,12 @@
 // Line icons (24×24, stroke = currentColor). Paths adapted from Feather/Lucide (MIT/ISC).
 const P = {
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5.5 5.5"/>',
+  // Home's top bar: bold and solid, as the PS5 draws them there.
+  tbSearch: '<circle cx="10.2" cy="10.2" r="6.3" stroke-width="2.9"/><path d="m15.1 15.1 5.4 5.4" stroke-width="3.3"/>',
+  tbSettings:
+    '<mask id="tb-gear"><rect width="24" height="24" fill="#fff"/><circle cx="12" cy="12" r="3.2" fill="#000"/></mask><g fill="currentColor" stroke="none" mask="url(#tb-gear)"><circle cx="12" cy="12" r="7.3"/>' +
+    [0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<rect x="9.8" y="1.4" width="4.4" height="5" rx="1.1" transform="rotate(${a} 12 12)"/>`).join('') +
+    '</g>',
   settings:
     '<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
   home: '<path d="M3.5 10.2 12 3.5l8.5 6.7V20a1 1 0 0 1-1 1h-5v-6.2h-5V21h-5a1 1 0 0 1-1-1z"/>',

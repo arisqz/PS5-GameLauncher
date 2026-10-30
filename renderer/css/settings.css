@@ -1,5 +1,9 @@
 /* The animated theme background (the one behind the Steam Store tile) shows
-   through a dark, light-raked veil. */
+   through a dark veil, lit like the PS5's settings: a spotlight just above
+   the top edge (17% in from the left) throws a warm cone down and to the
+   right, with distinct rays in it; it sways slowly, and the rays shift
+   against each other as it does (two layers at different speeds). A cool
+   haze lies on the "floor" at the bottom left. */
 .settings-view {
   background: transparent;
 }
@@ -9,48 +13,131 @@
   inset: 0;
   overflow: hidden;
   background:
-    radial-gradient(40% 55% at 4% -8%, rgba(255, 255, 255, 0.2), transparent 70%),
-    radial-gradient(70% 90% at 6% -18%, rgba(255, 255, 255, 0.1), transparent 62%),
-    linear-gradient(180deg, rgba(30, 32, 38, 0.62) 0%, rgba(22, 24, 29, 0.7) 50%, rgba(16, 17, 21, 0.8) 100%);
+    /* the source, just above the screen */
+    radial-gradient(9% 16% at 17% -2%, rgba(255, 236, 226, 0.34), transparent 100%),
+    /* the cone's glow: brightest along its middle, down to the right */
+    radial-gradient(34% 70% at 24% 4%, rgba(255, 232, 222, 0.16), transparent 100%),
+    radial-gradient(48% 95% at 30% 14%, rgba(255, 232, 222, 0.07), transparent 100%),
+    /* the floor */
+    radial-gradient(46% 11% at 22% 90%, rgba(176, 184, 206, 0.2), transparent 100%),
+    linear-gradient(180deg, rgba(30, 30, 38, 0.66) 0%, rgba(22, 22, 31, 0.74) 50%, rgba(16, 16, 24, 0.82) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0) 40%, rgba(6, 6, 14, 0.22) 100%);
 }
 
-.set-bg::before {
+/* The rays: streaks with crisp edges fanning out from the source (at
+   29.4% 15% of these layers, which overhang the screen by 30% each way),
+   fading with distance. */
+.set-bg::before,
+.set-bg::after {
   content: "";
   position: absolute;
-  left: -25%;
-  top: -45%;
-  width: 95%;
-  height: 130%;
-  background: conic-gradient(from 105deg at 18% 2%, transparent 0deg, rgba(255, 255, 255, 0.15) 8deg, transparent 18deg, rgba(255, 255, 255, 0.08) 27deg, transparent 36deg, rgba(255, 255, 255, 0.12) 47deg, transparent 60deg, rgba(255, 255, 255, 0.06) 70deg, transparent 82deg);
-  filter: blur(1.8rem);
-  animation: raysDrift 14s var(--ease-in-out) infinite alternate;
+  inset: -30%;
+  transform-origin: 29.4% 15%;
+  /* Near the source the beams melt into its glow; they part further down. */
+  -webkit-mask-image: radial-gradient(45% 55% at 29.4% 15%, rgba(0, 0, 0, 0.35) 0%, #000 20%, rgba(0, 0, 0, 0.6) 52%, transparent 100%);
+  mask-image: radial-gradient(45% 55% at 29.4% 15%, rgba(0, 0, 0, 0.35) 0%, #000 20%, rgba(0, 0, 0, 0.6) 52%, transparent 100%);
+  filter: blur(0.7rem);
+  pointer-events: none;
 }
 
-@keyframes raysDrift {
-  from { transform: rotate(-2deg) translateX(-1%); opacity: 0.85; }
-  to { transform: rotate(2.5deg) translateX(1%); opacity: 1; }
+/* Distinct beams with dark gaps between them, fanning from down-right
+   (~140deg) to down-left (~205deg); the brightest point down and to the right. */
+.set-bg::before {
+  background: conic-gradient(
+    from 128deg at 29.4% 15%,
+    transparent 0deg,
+    rgba(255, 236, 226, 0.12) 4deg,
+    rgba(255, 236, 226, 0.03) 9deg,
+    rgba(255, 236, 226, 0.22) 14deg,
+    rgba(255, 236, 226, 0.06) 19deg,
+    rgba(255, 236, 226, 0.3) 25deg,
+    rgba(255, 236, 226, 0.08) 31deg,
+    rgba(255, 236, 226, 0.25) 36deg,
+    rgba(255, 236, 226, 0.04) 41deg,
+    rgba(255, 236, 226, 0.2) 47deg,
+    rgba(255, 236, 226, 0.05) 53deg,
+    rgba(255, 236, 226, 0.17) 59deg,
+    rgba(255, 236, 226, 0.03) 65deg,
+    rgba(255, 236, 226, 0.11) 71deg,
+    transparent 78deg
+  );
+  animation: raysSway 9s var(--ease-in-out) infinite alternate;
 }
 
-/* Root list ------------------------------------------------------------ */
+/* Finer beams drifting the other way, so the rays shimmer as they cross. */
+.set-bg::after {
+  background: conic-gradient(
+    from 136deg at 29.4% 15%,
+    transparent 0deg,
+    rgba(255, 238, 230, 0.13) 5deg,
+    transparent 9deg,
+    rgba(255, 238, 230, 0.14) 16deg,
+    transparent 21deg,
+    rgba(255, 238, 230, 0.12) 29deg,
+    transparent 34deg,
+    rgba(255, 238, 230, 0.1) 43deg,
+    transparent 48deg,
+    rgba(255, 238, 230, 0.08) 57deg,
+    transparent 63deg
+  );
+  animation: raysSway2 13s var(--ease-in-out) infinite alternate;
+}
+
+@keyframes raysSway {
+  from { transform: rotate(-4deg); opacity: 0.85; }
+  to { transform: rotate(4deg); opacity: 1; }
+}
+
+@keyframes raysSway2 {
+  from { transform: rotate(3deg); opacity: 1; }
+  to { transform: rotate(-5deg); opacity: 0.7; }
+}
+
+body.reduce-motion .set-bg::before,
+body.reduce-motion .set-bg::after {
+  animation: none;
+}
+
+/* Into a category and back, timed like the screen change (see .view.anim-in):
+   the page left behind fades and shrinks towards the chosen row; 0.11 s in,
+   the other fades in and grows from that row. Only the content scales (about
+   the row, set from settings.js): the titles stay and crossfade. The focus
+   ring of the page coming in lights up last (.page-entering). */
 .set-root {
   position: absolute;
   inset: 0;
-  transition: opacity 0.3s var(--ease), transform 0.45s var(--ease-out);
+  transition: opacity calc(0.23s * var(--spd)) var(--zoom-fade-ease) calc(0.11s * var(--spd));
 }
 
 .settings-view.in-page .set-root {
   opacity: 0;
-  transform: translateX(-6rem);
   pointer-events: none;
+  transition: opacity calc(0.2s * var(--spd)) var(--zoom-out-ease);
 }
 
-.set-root.enter {
-  animation: rootBack 0.45s var(--ease-out);
+.set-root-wrap,
+.set-nav,
+.set-list-wrap {
+  transition: transform calc(0.32s * var(--spd)) var(--zoom-in-ease) calc(0.11s * var(--spd));
 }
 
-@keyframes rootBack {
-  from { opacity: 0; transform: translateX(-6rem); }
-  to { opacity: 1; transform: none; }
+.settings-view.in-page .set-root-wrap,
+.settings-view:not(.in-page) .set-nav,
+.settings-view:not(.in-page) .set-list-wrap {
+  transform: scale(0.97);
+  transition: transform calc(0.22s * var(--spd)) var(--zoom-out-ease);
+}
+
+.settings-view.in-page .set-scrollbar {
+  transform: scale(0.97);
+  transition: opacity 0.3s, transform calc(0.22s * var(--spd)) var(--zoom-out-ease);
+}
+
+.settings-view.page-entering .set-page .fx::before,
+.settings-view.page-entering .set-page .fx::after,
+.settings-view.root-entering .set-root .fx::before,
+.settings-view.root-entering .set-root .fx::after {
+  opacity: 0 !important;
 }
 
 .set-root-title,
@@ -70,6 +157,7 @@
   left: 30rem;
   width: 132.6rem;
   overflow: hidden;
+  transform-origin: 66rem 36.6rem; /* the screen's middle */
   -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 3rem), transparent 100%);
   mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 3rem), transparent 100%);
 }
@@ -95,16 +183,7 @@
   border-radius: 0.6rem;
   text-align: left;
   transition: background 0.18s, box-shadow 0.18s;
-  animation: fadeUp 0.45s var(--ease-out) both;
 }
-
-.set-root-item:nth-child(2) { animation-delay: 0.03s; }
-.set-root-item:nth-child(3) { animation-delay: 0.06s; }
-.set-root-item:nth-child(4) { animation-delay: 0.09s; }
-.set-root-item:nth-child(5) { animation-delay: 0.12s; }
-.set-root-item:nth-child(6) { animation-delay: 0.15s; }
-.set-root-item:nth-child(7) { animation-delay: 0.18s; }
-.set-root-item:nth-child(n + 8) { animation-delay: 0.21s; }
 
 .set-root-item.focused {
   background: rgba(255, 255, 255, 0.06);
@@ -134,7 +213,8 @@
   height: 52rem;
   border-radius: 0.15rem;
   background: rgba(255, 255, 255, 0.08);
-  transition: opacity 0.3s;
+  transition: opacity 0.3s, transform calc(0.32s * var(--spd)) var(--zoom-in-ease) calc(0.11s * var(--spd));
+  transform-origin: -67.6rem 35.8rem; /* the screen's middle */
   overflow: hidden;
 }
 
@@ -152,14 +232,13 @@
   inset: 0;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(6rem);
-  transition: opacity 0.35s var(--ease), transform 0.45s var(--ease-out);
+  transition: opacity calc(0.2s * var(--spd)) var(--zoom-out-ease);
 }
 
 .settings-view.in-page .set-page {
   opacity: 1;
   pointer-events: auto;
-  transform: none;
+  transition: opacity calc(0.23s * var(--spd)) var(--zoom-fade-ease) calc(0.11s * var(--spd));
 }
 
 .set-nav {
@@ -170,6 +249,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.6rem;
+  transform-origin: 78.6rem 35.6rem; /* the screen's middle */
 }
 
 .set-nav-item {
@@ -192,14 +272,6 @@
   box-shadow: inset 0 0 0 0.2rem rgba(255, 255, 255, 0.9);
 }
 
-.set-page.enter .set-title {
-  animation: fadeUp 0.45s var(--ease-out) both;
-}
-
-.set-page.enter .set-nav-item {
-  animation: fadeUp 0.45s var(--ease-out) both;
-}
-
 .set-list-wrap {
   position: absolute;
   left: 63.7rem;
@@ -207,6 +279,7 @@
   top: 14rem;
   bottom: 9rem;
   overflow: hidden;
+  transform-origin: 32.3rem 40rem; /* the screen's middle */
   -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 6rem), transparent 100%);
   mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 6rem), transparent 100%);
 }
@@ -223,20 +296,14 @@
   transition: transform calc(0.4s * var(--spd)) var(--ease-out);
 }
 
+/* Another section of the page: its rows fade in together (no stagger, as on the PS5). */
 .set-list.enter > * {
-  animation: listIn 0.4s var(--ease-out) both;
+  animation: listIn 0.2s var(--ease-out) both;
 }
 
-.set-list.enter > *:nth-child(2) { animation-delay: 0.03s; }
-.set-list.enter > *:nth-child(3) { animation-delay: 0.06s; }
-.set-list.enter > *:nth-child(4) { animation-delay: 0.09s; }
-.set-list.enter > *:nth-child(5) { animation-delay: 0.12s; }
-.set-list.enter > *:nth-child(6) { animation-delay: 0.15s; }
-.set-list.enter > *:nth-child(n + 7) { animation-delay: 0.18s; }
-
 @keyframes listIn {
-  from { opacity: 0; transform: translateX(2.4rem); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .set-header {

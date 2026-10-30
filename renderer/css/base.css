@@ -52,6 +52,11 @@
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* The PS5's screen change (curves fitted to a video of it, frame by frame):
+     the screen left fades and shrinks, the new one fades in and grows. */
+  --zoom-out-ease: cubic-bezier(0.33, 1, 0.68, 1);
+  --zoom-fade-ease: cubic-bezier(0.5, 1, 0.89, 1);
+  --zoom-in-ease: cubic-bezier(0, 0, 0.2, 1);
   --spd: 1;
   --ring: 0 0 0 0.32rem #fff, 0 0 2.6rem rgba(255, 255, 255, 0.22);
 }
@@ -171,41 +176,41 @@ svg.ic {
   display: block;
 }
 
-.view.anim-in {
-  animation: viewIn calc(0.45s * var(--spd)) var(--ease-out) both;
-}
-
-.view.anim-out {
-  display: block;
-  pointer-events: none;
-  animation: viewOut calc(0.28s * var(--spd)) var(--ease) both;
-}
-
+/* Changing screens, as the PS5 does it (fitted to a video of its Settings,
+   frame by frame): the screen left behind fades (0.2 s) and shrinks to 0.97
+   (0.22 s); 0.11 s in, the new one fades in (0.23 s) and grows from 0.97,
+   slowing to a stop (0.32 s). Going back looks the same. */
+.view.anim-in,
 .view.anim-back-in {
-  animation: viewBackIn calc(0.45s * var(--spd)) var(--ease-out) both;
+  animation:
+    viewFadeIn calc(0.23s * var(--spd)) var(--zoom-fade-ease) calc(0.11s * var(--spd)) both,
+    viewGrow calc(0.32s * var(--spd)) var(--zoom-in-ease) calc(0.11s * var(--spd)) both;
 }
 
+.view.anim-out,
 .view.anim-back-out {
   display: block;
   pointer-events: none;
-  animation: viewBackOut calc(0.28s * var(--spd)) var(--ease) both;
+  animation:
+    viewFadeOut calc(0.2s * var(--spd)) var(--zoom-out-ease) both,
+    viewShrink calc(0.22s * var(--spd)) var(--zoom-out-ease) both;
 }
 
-@keyframes viewIn {
-  from { opacity: 0; transform: scale(1.035); }
-  to { opacity: 1; transform: none; }
+@keyframes viewFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-@keyframes viewOut {
-  from { opacity: 1; transform: none; }
-  to { opacity: 0; transform: scale(0.975); }
+@keyframes viewGrow {
+  from { transform: scale(0.97); }
+  to { transform: none; }
 }
-@keyframes viewBackIn {
-  from { opacity: 0; transform: scale(0.975); }
-  to { opacity: 1; transform: none; }
+@keyframes viewFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
-@keyframes viewBackOut {
-  from { opacity: 1; transform: none; }
-  to { opacity: 0; transform: scale(1.035); }
+@keyframes viewShrink {
+  from { transform: none; }
+  to { transform: scale(0.97); }
 }
 
 /* Windowed mode: a slim title bar above the app (window buttons are native) */
@@ -318,9 +323,13 @@ html.windowed .boot {
 /* Focus ring + glint (PS5 style)                                      */
 /* ------------------------------------------------------------------ */
 /*
- * .fx elements get a ring drawn around them while focused. A light travels
- * slowly around the ring (rotating conic gradient). After ~1.5 s of focus a
- * soft diagonal glint sweeps across the element, then repeats every ~5 s.
+ * .fx elements get a ring drawn around them while focused. As on the PS5
+ * (measured from a video of a focused Settings row): the ring is cream on one
+ * side, grey-lavender along the middle and nearly gone on the far side, and
+ * that light swings slowly back and forth (the far side tilts between the
+ * top and bottom corners about every 7 s), so the bottom edge is warm, almost
+ * yellow, some of the time. After ~1.5 s of focus a broad, soft band of light
+ * sweeps across the element left to right in under a second, every 5 s.
  * .fx-in puts the ring on the element's edge (list rows) instead of outside.
  */
 @property --ring-a {
@@ -335,7 +344,11 @@ html.windowed .boot {
   --fx-gap: 0.5rem;
   --fx-w: 0.28rem;
   --glint: 0.3;
-  --glint-size: 320%;
+  --glint-size: 300%;
+  /* The ring's light (colour and how much of what's behind shows through). */
+  --ring-bright: rgba(255, 241, 228, 1);
+  --ring-mid: rgba(236, 234, 248, 0.82);
+  --ring-dark: rgba(236, 234, 248, 0.42);
 }
 
 .fx::before {
@@ -344,14 +357,16 @@ html.windowed .boot {
   inset: calc(-1 * (var(--fx-gap) + var(--fx-w)));
   border-radius: calc(var(--fx-r) + var(--fx-gap) + var(--fx-w));
   padding: var(--fx-w);
+  /* Light from the left (270deg), dark towards the right (90deg). */
   background: conic-gradient(
     from var(--ring-a),
-    #ffffff 0deg,
-    rgba(255, 255, 255, 0.88) 60deg,
-    rgba(255, 255, 255, 0.5) 140deg,
-    rgba(255, 255, 255, 0.4) 190deg,
-    rgba(255, 255, 255, 0.72) 280deg,
-    #ffffff 360deg
+    var(--ring-mid) 0deg,
+    var(--ring-dark) 70deg,
+    var(--ring-dark) 110deg,
+    var(--ring-mid) 180deg,
+    var(--ring-bright) 245deg,
+    var(--ring-bright) 295deg,
+    var(--ring-mid) 360deg
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -368,17 +383,18 @@ html.windowed .boot {
   position: absolute;
   inset: 0;
   border-radius: var(--fx-r);
+  /* A band wider than the element, nearly upright, soft all the way across. */
   background: linear-gradient(
-      125deg,
-      rgba(255, 255, 255, 0) 18%,
-      rgba(255, 255, 255, calc(var(--glint) * 0.55)) 38%,
+      100deg,
+      rgba(255, 255, 255, 0) 10%,
+      rgba(255, 255, 255, calc(var(--glint) * 0.6)) 30%,
       rgba(255, 255, 255, var(--glint)) 50%,
-      rgba(255, 255, 255, calc(var(--glint) * 0.55)) 62%,
-      rgba(255, 255, 255, 0) 82%
+      rgba(255, 255, 255, calc(var(--glint) * 0.6)) 70%,
+      rgba(255, 255, 255, 0) 90%
     )
     no-repeat;
-  background-size: var(--glint-size) var(--glint-size);
-  background-position: 100% 100%;
+  background-size: var(--glint-size) 100%;
+  background-position: 115% 0;
   opacity: 0;
   pointer-events: none;
   z-index: 2;
@@ -389,22 +405,25 @@ html.windowed .boot {
 .fx.sel:not(.tile)::before {
   opacity: 1;
   transform: none;
-  /* 30 steps a second: the soft highlight looks the same, and the ring is
+  /* 30 steps a second: the soft light looks the same, and the ring is
      repainted half as often (it runs whenever the launcher is in front). */
-  animation: ringSpin 7s steps(210) infinite;
+  animation: ringSwing 3.5s steps(105) infinite alternate;
 }
 
 .fx.focused::after,
 .focused > .fx::after,
 .fx.sel:not(.tile)::after {
-  animation: glint 5.2s var(--ease-in-out) 1.5s infinite;
+  animation: glint 5s linear 1.5s infinite;
 }
 
+/* List rows: the PS5's measured strength (the band lifts a dark row by ~13% white). */
 .fx-in {
   --fx-gap: 0rem;
   --fx-w: 0.2rem;
-  --glint: 0.22;
-  --glint-size: 190%;
+  --glint: 0.13;
+  --ring-bright: rgba(255, 241, 228, 0.75);
+  --ring-mid: rgba(236, 234, 248, 0.55);
+  --ring-dark: rgba(236, 234, 248, 0.25);
 }
 
 .fx-in::before {
@@ -413,18 +432,18 @@ html.windowed .boot {
   transform: none;
 }
 
-@keyframes ringSpin {
-  from { --ring-a: 0deg; }
-  to { --ring-a: -360deg; }
+/* Ease in and out at each end of the swing (alternate runs it back). */
+@keyframes ringSwing {
+  0% { --ring-a: -25deg; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  100% { --ring-a: 25deg; }
 }
 
-/* Give the idle shine time to fade at both ends of its sweep.
-   At 5.2 s per cycle, the fades last 520 ms in and 624 ms out. */
+/* The band slides in from the left and out to the right in 0.95 s, eased;
+   its soft edges do the fading. */
 @keyframes glint {
-  0% { opacity: 0; background-position: 100% 100%; }
-  10% { opacity: 1; }
-  22% { opacity: 0; background-position: 0% 0%; }
-  100% { opacity: 0; background-position: 0% 0%; }
+  0% { opacity: 1; background-position: 115% 0; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  19% { opacity: 1; background-position: -15% 0; }
+  19.01%, 100% { opacity: 0; background-position: -15% 0; }
 }
 
 .reduce-motion .fx::after {
@@ -781,9 +800,61 @@ html.windowed .boot {
   display: none;
 }
 
-/* Settings › System › Language and Font: the PlayStation (SST) typeface */
+/* Settings › System › Language and Font: the PlayStation (SST) typeface,
+   as the PS5 sets it. Measured from PS5 screenshots (stroke width against
+   letter height), nearly everything there is SST Light: titles, settings
+   rows and sections, tile names, captions, body text. So weights map one
+   step lighter than their names: normal text is Light, 500 Regular, 600
+   Medium, 700 Bold. Only emphasis is bold: the selected tab at the top, text
+   buttons. */
+@font-face {
+  font-family: "SST UI";
+  src: url("../fonts/sst/SSTLight.TTF") format("truetype");
+  font-weight: 100 449;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SST UI";
+  src: url("../fonts/sst/SSTRg.TTF") format("truetype");
+  font-weight: 450 549;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SST UI";
+  src: url("../fonts/sst/SSTMedium.TTF") format("truetype");
+  font-weight: 550 649;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SST UI";
+  src: url("../fonts/sst/SSTBold.TTF") format("truetype");
+  font-weight: 650 749;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SST UI";
+  src: url("../fonts/sst/SSTHeavy.TTF") format("truetype");
+  font-weight: 750 900;
+  font-display: swap;
+}
+
 html.font-sst {
-  --font: "SST", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font: "SST UI", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+}
+
+/* The PS5's emphasis: the selected Games / Media tab is medium and the hub's
+   buttons bold; a game's name and the hub's card headings are light like the rest. */
+html.font-sst .tb-tab.active {
+  font-weight: 600;
+}
+
+html.font-sst .hub-btn {
+  font-weight: 700;
+}
+
+html.font-sst .hub-title,
+html.font-sst .card-head {
+  font-weight: 300;
 }
 
 /* Download progress bars (PS5): while Steam is working, a soft glow runs along

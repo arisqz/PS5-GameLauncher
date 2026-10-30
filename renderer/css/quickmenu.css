@@ -1147,7 +1147,7 @@
 
 /* Selected: the ring gives a little press and springs back. */
 .qm.customizing .qm-btn.press::before {
-  animation: qmPress 0.34s cubic-bezier(0.3, 0.6, 0.35, 1), ringSpin 7s steps(210) infinite;
+  animation: qmPress 0.34s cubic-bezier(0.3, 0.6, 0.35, 1), ringSwing 3.5s steps(105) infinite alternate;
 }
 
 @keyframes qmPress {

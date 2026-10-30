@@ -147,6 +147,8 @@ export class SettingsView {
     if (sound) sfx.select();
     // The root's "return" animation must not keep it visible behind the page.
     this.root.classList.remove('enter');
+    this.zoomAbout(this.rootNav.current);
+    this.ringLater('page-entering');
     this.el.classList.add('in-page');
     this.page.classList.remove('enter');
     void this.page.offsetWidth;
@@ -182,9 +184,28 @@ export class SettingsView {
     if (sec && sec.onLeave) sec.onLeave();
   }
 
+  // Both pages shrink towards / grow from the chosen row, as on the PS5.
+  zoomAbout(row) {
+    const v = this.el.getBoundingClientRect();
+    const r = row && row.getBoundingClientRect();
+    const x = r && r.width ? r.left + r.width / 2 - v.left : v.width / 2;
+    const y = r && r.width ? r.top + r.height / 2 - v.top : v.height / 2;
+    for (const el of [this.rootWrap, this.rootBar, this.nav, this.listWrap]) el.style.transformOrigin = `${x - el.offsetLeft}px ${y - el.offsetTop}px`;
+  }
+
+  // The focus ring of the page coming in lights up once it has nearly settled.
+  ringLater(cls) {
+    clearTimeout(this.ringTimer);
+    this.el.classList.remove('page-entering', 'root-entering');
+    this.el.classList.add(cls);
+    this.ringTimer = setTimeout(() => this.el.classList.remove(cls), 300);
+  }
+
   closeCategory() {
     this.leaveSection();
     this.mode = 'root';
+    this.zoomAbout(this.rootNav.current);
+    this.ringLater('root-entering');
     this.el.classList.remove('in-page');
     replayClass(this.root, 'enter', 600);
     requestAnimationFrame(() => this.scrollRoot(true));

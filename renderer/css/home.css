@@ -10,7 +10,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 7rem 0 7.4rem;
+  /* Right: the clock ends 8.8rem from the edge, as on the PS5 (measured from a screenshot). */
+  padding: 0 8.45rem 0 7.4rem;
   z-index: 5;
   transition: opacity calc(0.45s * var(--spd)) var(--ease), transform calc(0.55s * var(--spd)) var(--ease-out);
 }
@@ -18,7 +19,8 @@
 
 .tb-tabs {
   display: flex;
-  gap: 1rem;
+  /* "Media" starts 8.6rem after "Games", as on the PS5. */
+  gap: 3.3rem;
 }
 
 .tb-tab {
@@ -41,10 +43,14 @@
   color: #fff;
 }
 
+/* PS5 measurements: icon and avatar centres 10.4rem apart and all on one
+   line, 6.2rem from the top; 11.8rem from the avatar's centre to the clock. */
 .tb-right {
   display: flex;
   align-items: center;
-  gap: 2.6rem;
+  gap: 4.4rem;
+  position: relative;
+  top: 0.25rem;
 }
 
 .tb-icon {
@@ -53,7 +59,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 3.4rem;
+  font-size: 3.65rem;
   color: #fff;
   transition: background 0.25s, box-shadow 0.25s, transform 0.25s var(--ease);
 }
@@ -73,23 +79,27 @@
 }
 
 .tb-avatar {
-  width: 4.6rem;
-  height: 4.6rem;
-  font-size: 4.6rem;
-  box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.85);
+  width: 4.7rem;
+  height: 4.7rem;
+  font-size: 4.7rem;
+  box-shadow: 0 0 0 0.12rem rgba(255, 255, 255, 0.7);
 }
 
 .tb-profile {
   position: relative;
 }
 
+/* As wide as "8:06 PM" at least: SST's digits aren't all the same width, so
+   without it the icons would shift with the time. */
 .tb-clock {
-  font-size: 3.8rem;
+  font-size: 3.65rem;
   font-weight: 300;
-  min-width: 11rem;
+  min-width: 13.8rem;
+  margin-left: 4.3rem;
   text-align: right;
-  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  position: relative;
+  top: -0.15rem;
 }
 
 /* ------------------------------------------------------------------ */
@@ -833,13 +843,14 @@
 
 .tb-online {
   position: absolute;
-  width: 1.3rem;
-  height: 1.3rem;
+  width: 1.2rem;
+  height: 1.2rem;
   background: var(--green);
   border-radius: 50%;
-  border: 0.25rem solid #0b0f19;
-  left: calc(50% + 1rem);
-  top: calc(50% + 1rem);
+  box-shadow: 0 0.1rem 0.3rem rgba(0, 0, 0, 0.35);
+  /* centred on the avatar's edge, down and to the right */
+  left: calc(50% + 1.24rem);
+  top: calc(50% + 1.21rem);
 }
 
 .tile {

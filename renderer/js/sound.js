@@ -412,46 +412,21 @@ export function setAmbient(on, vol = 0.35) {
 /* Game theme music (thememusic.js decides what plays)                 */
 /* ------------------------------------------------------------------ */
 
+// A song is streamed from an audio element routed through the audio graph (its
+// own gain, then the theme's), not decoded up front: decoding a whole song took
+// over a second before the first note.
 const THEME_FADE_IN = 1.6;
 const THEME_FADE_OUT = 0.9;
-const THEME_LOOP_FADE = 2.5; // the clip crossfades into itself where it loops
-let theme = null; // { key, out, buffer, timer, voices }
-const themeBuffers = new Map(); // key -> AudioBuffer, the last few decoded
+const THEME_LOOP_FADE = 2.5; // the song crossfades into its own start where it loops
+const THEME_MAX = 120; // s of a song played before it goes round again
+let theme = null; // { key, url, out, timer, voices: [{ el, src, g }] }
 let onThemeLost = null;
-
-/** The decoded audio of a theme, if it is still kept. */
-export function themeBuffer(key) {
-  return themeBuffers.get(key) || null;
-}
-
-const THEME_MAX = 120; // s of a song kept (and looped): full songs decode to a lot of memory
-
-export async function decodeTheme(key, bytes) {
-  const c = ensure();
-  const full = await c.decodeAudioData(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
-  // Skip the silence many uploads start with, and keep the first couple of minutes.
-  const first = full.getChannelData(0);
-  const limit = Math.min(first.length, full.sampleRate * 5);
-  let from = 0;
-  while (from < limit && Math.abs(first[from]) < 0.003) from++;
-  if (from >= limit) from = 0;
-  const length = Math.min(full.length - from, full.sampleRate * THEME_MAX);
-  let buf = full;
-  if (from > 0 || length < full.length) {
-    buf = c.createBuffer(full.numberOfChannels, length, full.sampleRate);
-    for (let ch = 0; ch < full.numberOfChannels; ch++) buf.copyToChannel(full.getChannelData(ch).subarray(from, from + length), ch);
-  }
-  themeBuffers.delete(key);
-  themeBuffers.set(key, buf);
-  while (themeBuffers.size > 3) themeBuffers.delete(themeBuffers.keys().next().value);
-  return buf;
-}
 
 /**
  * Fade a theme in (and keep it looping); whatever played before fades out.
- * offset: where in the song to start (picking up after a pause).
+ * url: the song (a blob: URL). offset: where to start (picking up after a pause).
  */
-export function playTheme(key, buffer, vol, { offset = 0, fadeIn = THEME_FADE_IN } = {}) {
+export function playTheme(key, url, vol, { offset = 0, fadeIn = THEME_FADE_IN } = {}) {
   const c = ensure();
   if (theme && theme.key === key) {
     theme.out.gain.setTargetAtTime(vol, c.currentTime, 0.3);
@@ -461,43 +436,71 @@ export function playTheme(key, buffer, vol, { offset = 0, fadeIn = THEME_FADE_IN
   const out = c.createGain();
   out.gain.value = vol;
   out.connect(master);
-  theme = { key, out, buffer, timer: null, voices: [], rounds: [] };
-  themeVoice(theme, c.currentTime + 0.05, fadeIn, offset % buffer.duration);
+  theme = { key, url, out, timer: null, voices: [] };
+  themeVoice(theme, offset, fadeIn);
 }
 
-/** One round of the loop, from `offset` into the song to its end. */
-function themeVoice(th, at, fadeIn, offset = 0) {
+/** One round of the loop, from `offset` into the song to its end (or THEME_MAX). */
+function themeVoice(th, offset, fadeIn) {
   const c = ctx;
-  const dur = th.buffer.duration - offset;
-  const xf = Math.min(THEME_LOOP_FADE, th.buffer.duration / 4, dur / 2);
-  const end = at + dur;
-  const src = c.createBufferSource();
+  const el = new Audio(th.url);
+  el.preload = 'auto';
+  const src = c.createMediaElementSource(el);
   const g = c.createGain();
-  src.buffer = th.buffer;
+  g.gain.value = 0;
   src.connect(g).connect(th.out);
-  g.gain.setValueAtTime(0, at);
-  g.gain.linearRampToValueAtTime(1, at + Math.min(fadeIn, dur / 4));
-  g.gain.setValueAtTime(1, end - xf);
-  g.gain.linearRampToValueAtTime(0, end);
-  src.start(at, offset);
-  th.voices.push(src);
-  th.rounds = [...th.rounds.slice(-1), { at, offset }];
-  src.onended = () => (th.voices = th.voices.filter((v) => v !== src));
-  // The next round starts at the top of the song while this one fades out.
-  th.timer = setTimeout(() => {
-    if (theme === th && ctx === c) themeVoice(th, end - xf, xf);
-  }, Math.max(0, (end - xf - c.currentTime - 0.4) * 1000));
+  const v = { el, src, g };
+  th.voices.push(v);
+  el.addEventListener(
+    'loadedmetadata',
+    () => {
+      if (theme !== th || ctx !== c) return dropVoice(v);
+      const end = Math.min(el.duration || THEME_MAX, THEME_MAX);
+      const from = offset % end;
+      if (from) el.currentTime = from;
+      el.play().catch(() => {});
+      const t = c.currentTime;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(1, t + Math.min(fadeIn, (end - from) / 4));
+      // The next round starts at the top of the song while this one fades out.
+      const xf = Math.min(THEME_LOOP_FADE, end / 4, (end - from) / 2);
+      th.timer = setTimeout(() => {
+        if (theme !== th || ctx !== c) return;
+        fadeVoice(v, xf);
+        themeVoice(th, 0, xf);
+      }, Math.max(0, (end - from - xf) * 1000));
+    },
+    { once: true }
+  );
+}
+
+function fadeVoice(v, secs) {
+  if (ctx) {
+    const t = ctx.currentTime;
+    v.g.gain.cancelScheduledValues(t);
+    v.g.gain.setValueAtTime(v.g.gain.value, t);
+    v.g.gain.linearRampToValueAtTime(0, t + secs);
+  }
+  setTimeout(() => dropVoice(v), secs * 1000 + 100);
+}
+
+function dropVoice(v) {
+  v.el.pause();
+  v.el.removeAttribute('src');
+  v.el.load();
+  try {
+    v.src.disconnect();
+  } catch {}
 }
 
 /** Fade the theme out quickly; where it was (s into the song), to pick up from there. */
 export function pauseTheme() {
   const th = theme;
-  if (!th || !ctx) return 0;
-  const now = ctx.currentTime;
-  const round = [...th.rounds].reverse().find((r) => r.at <= now) || th.rounds[0];
-  const pos = round ? round.offset + Math.max(0, now - round.at) : 0;
+  if (!th) return 0;
+  const cur = th.voices[th.voices.length - 1];
+  const pos = cur ? cur.el.currentTime || 0 : 0;
   stopTheme(0.35);
-  return pos % th.buffer.duration;
+  return pos;
 }
 
 export function stopTheme(fade = THEME_FADE_OUT) {
@@ -505,12 +508,12 @@ export function stopTheme(fade = THEME_FADE_OUT) {
   theme = null;
   if (!th) return;
   clearTimeout(th.timer);
-  if (!ctx) return;
+  if (!ctx) return th.voices.forEach(dropVoice);
   const t = ctx.currentTime;
   th.out.gain.cancelScheduledValues(t);
   th.out.gain.setValueAtTime(th.out.gain.value, t);
   th.out.gain.linearRampToValueAtTime(0, t + fade);
-  setTimeout(() => th.voices.forEach((v) => v.stop()), fade * 1000 + 100);
+  setTimeout(() => th.voices.forEach(dropVoice), fade * 1000 + 100);
 }
 
 export function setThemeVolume(vol) {
@@ -543,6 +546,7 @@ export function resetAudio() {
   }
   if (theme) {
     clearTimeout(theme.timer);
+    theme.voices.forEach(dropVoice); // their sound went to the old graph
     theme = null;
     if (onThemeLost) setTimeout(onThemeLost, 0);
   }
