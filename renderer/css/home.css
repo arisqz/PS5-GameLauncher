@@ -846,6 +846,14 @@
   box-shadow: none;
 }
 
+/* Let the ring follow the button's hover scale. Its shared 1.05 -> 1
+   animation otherwise shrinks against the growing button, with different
+   durations, and changes the masked edge's rasterization as it settles. */
+.topbar .fx::before {
+  transform: none;
+  transition: opacity 0.2s var(--ease);
+}
+
 .tb-online {
   position: absolute;
   width: 1.2rem;
