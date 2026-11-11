@@ -395,7 +395,82 @@ async function scanSteam({ owned = false } = {}) {
 /* Epic Games                                                          */
 /* ------------------------------------------------------------------ */
 
+function epicGame({ appName, namespace, itemId, name, dir, launchExe, launchCommand, offline }) {
+  const uri = `com.epicgames.launcher://apps/${encodeURIComponent(namespace)}%3A${encodeURIComponent(itemId)}%3A${encodeURIComponent(appName)}?action=launch&silent=true`;
+  const exe = launchExe ? path.join(dir, launchExe) : null;
+  return {
+    id: `epic-${appName}`,
+    name: tidyName(name),
+    source: 'epic',
+    installDir: dir,
+    exe,
+    launch: { type: 'uri', target: uri },
+    // Started without the Epic launcher, the game gets the arguments Epic
+    // would pass, minus the sign-in. Fine for games that run offline.
+    direct: exe ? { target: exe, args: `${(launchCommand || '').trim()} -epicapp=${appName} -epicenv=Prod -EpicPortal`.trim(), cwd: path.dirname(exe) } : null,
+    directSafe: !!offline,
+  };
+}
+
+async function readJson(file) {
+  const text = await readText(file);
+  if (!text) return null;
+  try {
+    return JSON.parse(text.replace(/^\uFEFF/, ''));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The rebuilt Epic Games Launcher (2026 preview, "eglv2") keeps its installs in
+ * %LOCALAPPDATA%\com.epicgames.eglv2\installations.jsonl: a header line, then one
+ * line per write; a later line replaces an earlier one with the same id. Names
+ * come from its catalog cache (by item id), else the classic manifest it
+ * imported, else the folder.
+ */
+async function scanEpicV2() {
+  const base = path.join(process.env.LOCALAPPDATA || '', 'com.epicgames.eglv2');
+  const text = await readText(path.join(base, 'installations.jsonl'));
+  if (!text) return null;
+  const latest = new Map();
+  for (const line of text.split(/\r?\n/).slice(1)) {
+    if (!line.trim()) continue;
+    try {
+      const e = JSON.parse(line);
+      if (e && e.installationId) latest.set(e.installationId, e);
+    } catch {}
+  }
+  const catalog = ((await readJson(path.join(base, 'cache', 'prod', 'catalog-cache.json'))) || {}).items || {};
+  const games = [];
+  for (const e of latest.values()) {
+    if (!e.complete || e.parentInstallationId) continue; // unfinished, or content of another install
+    if (e.platform && e.platform !== 'Windows') continue;
+    if (!e.dir || !e.artifactId || !fs.existsSync(e.dir)) continue;
+    const item = (catalog[e.itemId] || {}).item;
+    if (item && item.mainGameItem) continue; // DLC
+    if (item && Array.isArray(item.categories) && item.categories.length && !item.categories.some((c) => c && c.path === 'games')) continue;
+    const imported = await readJson(path.join(base, 'import-scan', 'v1-items', `${e.installationId}.item`));
+    if (imported && imported.AppCategories && !imported.AppCategories.includes('games')) continue;
+    const name = (item && item.title) || (imported && imported.DisplayName) || path.basename(e.dir);
+    games.push(
+      epicGame({
+        appName: e.artifactId,
+        namespace: e.namespace,
+        itemId: e.itemId,
+        name,
+        dir: e.dir,
+        launchExe: e.launchExecutable,
+        launchCommand: e.launchCommand,
+        offline: imported && imported.bCanRunOffline && String(imported.OwnershipToken) !== 'true',
+      })
+    );
+  }
+  return games;
+}
+
 async function scanEpic() {
+  const v2 = await scanEpicV2();
   let dir = 'C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests';
   const reg = await regQuery('HKLM\\SOFTWARE\\WOW6432Node\\Epic Games\\EpicGamesLauncher', 'AppDataPath');
   if (reg && fs.existsSync(path.join(reg, 'Manifests'))) dir = path.join(reg, 'Manifests');
@@ -404,9 +479,12 @@ async function scanEpic() {
   try {
     files = await fsp.readdir(dir);
   } catch {
-    return { found: false, games: [] };
+    files = null;
   }
-  const games = [];
+  if (!files && !v2) return { found: false, games: [] };
+  const games = [...(v2 || [])];
+  const seen = new Set(games.map((g) => g.id));
+  files = files || [];
   for (const f of files) {
     if (!/\.item$/i.test(f)) continue;
     const text = await readText(path.join(dir, f));
@@ -422,22 +500,19 @@ async function scanEpic() {
     if (j.bIsIncompleteInstall) continue;
     if (j.MainGameAppName && j.MainGameAppName !== j.AppName) continue; // DLC
     if (!j.InstallLocation || !fs.existsSync(j.InstallLocation)) continue;
-    const uri = `com.epicgames.launcher://apps/${encodeURIComponent(j.CatalogNamespace)}%3A${encodeURIComponent(j.CatalogItemId)}%3A${encodeURIComponent(j.AppName)}?action=launch&silent=true`;
-    const exe = j.LaunchExecutable ? path.join(j.InstallLocation, j.LaunchExecutable) : null;
-    games.push({
-      id: `epic-${j.AppName}`,
-      name: tidyName(j.DisplayName),
-      source: 'epic',
-      installDir: j.InstallLocation,
-      exe,
-      launch: { type: 'uri', target: uri },
-      // Started without the Epic launcher, the game gets the arguments Epic
-      // would pass, minus the sign-in. Fine for games that run offline.
-      direct: exe
-        ? { target: exe, args: `${(j.LaunchCommand || '').trim()} -epicapp=${j.AppName} -epicenv=Prod -EpicPortal`.trim(), cwd: path.dirname(exe) }
-        : null,
-      directSafe: !!j.bCanRunOffline && String(j.OwnershipToken) !== 'true',
-    });
+    if (seen.has(`epic-${j.AppName}`)) continue; // also in the new launcher's list
+    games.push(
+      epicGame({
+        appName: j.AppName,
+        namespace: j.CatalogNamespace,
+        itemId: j.CatalogItemId,
+        name: j.DisplayName,
+        dir: j.InstallLocation,
+        launchExe: j.LaunchExecutable,
+        launchCommand: j.LaunchCommand,
+        offline: j.bCanRunOffline && String(j.OwnershipToken) !== 'true',
+      })
+    );
   }
   return { found: true, games };
 }
