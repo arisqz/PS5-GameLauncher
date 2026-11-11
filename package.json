@@ -1,7 +1,7 @@
 {
   "name": "ps5-game-launcher",
   "productName": "PS5 Game Launcher",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A controller-first game launcher for Windows with a PS5-style interface",
   "main": "main/main.js",
   "private": true,
