@@ -61,6 +61,10 @@
   place-items: center;
   font-size: 3.65rem;
   color: #fff;
+  /* Keep the resting state on the same transform layer as the hover zoom.
+     Dropping to transform:none can snap SVG edges when focus leaves. */
+  transform: scale(1);
+  will-change: transform;
   transition: background 0.25s, box-shadow 0.25s, transform 0.25s var(--ease);
 }
 
@@ -195,8 +199,9 @@
   animation-delay: calc(var(--i) * 30ms), 0s !important;
 }
 
+/* Start at rest so returning to an already enlarged tile does not snap smaller. */
 @keyframes tilePop {
-  0% { transform: scale(0.94); }
+  0% { transform: scale(1); }
   60% { transform: scale(1.025); }
   100% { transform: scale(1); }
 }
@@ -839,6 +844,14 @@
 
 .tb-icon.focused {
   box-shadow: none;
+}
+
+/* Let the ring follow the button's hover scale. Its shared 1.05 -> 1
+   animation otherwise shrinks against the growing button, with different
+   durations, and changes the masked edge's rasterization as it settles. */
+.topbar .fx::before {
+  transform: none;
+  transition: opacity 0.2s var(--ease);
 }
 
 .tb-online {
