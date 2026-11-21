@@ -8,6 +8,7 @@
   "license": "MIT",
   "author": "Aris",
   "scripts": {
+    "test:ru": "node --test scripts/check-russian.mjs",
     "start": "node scripts/fetch-concentus.js && node scripts/build-native.js && node scripts/fetch-libviiper.js && electron .",
     "dev": "node scripts/fetch-concentus.js && node scripts/build-native.js && node scripts/fetch-libviiper.js && electron . --dev",
     "build:native": "node scripts/build-native.js --force",

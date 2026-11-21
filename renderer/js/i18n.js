@@ -6,8 +6,9 @@ import de from './locales/de.js';
 import es from './locales/es.js';
 import fr from './locales/fr.js';
 import pt from './locales/pt.js';
+import ru from './locales/ru.js';
 
-const TABLES = { de, es, fr, pt };
+const TABLES = { de, es, fr, pt, ru };
 
 export const LANGUAGES = [
   { value: 'auto', label: 'System Language' },
@@ -16,6 +17,7 @@ export const LANGUAGES = [
   { value: 'es', label: 'Español' },
   { value: 'pt', label: 'Português' },
   { value: 'fr', label: 'Français' },
+  { value: 'ru', label: 'Русский' },
 ];
 
 let table = null;

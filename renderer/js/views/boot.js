@@ -51,7 +51,7 @@ class Welcome {
         { class: 'welcome' },
         h('div', { class: 'ws-clock', dataset: { clock: '' } }),
         h('div', { class: 'ws-title', text: t('Welcome Back to PS5 Game Launcher') }),
-        h('div', { class: 'ws-sub', text: "Who's using this controller?" }),
+        h('div', { class: 'ws-sub', text: t("Who's using this controller?") }),
         (this.rowEl = h('div', { class: 'ws-row' })),
         (this.powerBtn = h('button', { class: 'ws-power fx', html: icon('power'), title: t('Power'), onclick: () => this.focusPower(true) && this.powerMenu() })),
         h('div', { class: 'ws-select', html: `<span data-glyph="confirm">${glyph('confirm')}</span><span>${t('Select')}</span>` })

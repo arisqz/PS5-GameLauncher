@@ -35,6 +35,22 @@ export function toast({ title, body = '', icon: ic = 'bell', image = null, durat
 
 let progressEl = null;
 
+// Scan progress comes from the main process as English text with game/folder names.
+// Translate the known labels without treating those names as localization keys.
+export function scanProgressLabel(label = '') {
+  const patterns = [
+    [/^Scanning (.+)…$/s, 'Scanning {name}…'],
+    [/^Matching (.+)…$/s, 'Matching {name}…'],
+    [/^Downloading artwork · (.+)$/s, 'Downloading artwork · {name}'],
+  ];
+  if (['Scanning for games…', 'Scanning Nintendo Switch games…', 'Finding artwork…'].includes(label)) return t(label);
+  for (const [pattern, key] of patterns) {
+    const match = label.match(pattern);
+    if (match) return t(key, { name: match[1] });
+  }
+  return t(label);
+}
+
 function renderProgress(p) {
   if (!p || !p.active) {
     if (progressEl) {
@@ -60,7 +76,7 @@ function renderProgress(p) {
     box.append(progressEl);
     requestAnimationFrame(() => requestAnimationFrame(() => progressEl && progressEl.classList.add('in')));
   }
-  progressEl.querySelector('.toast-body').textContent = t(p.label || '');
+  progressEl.querySelector('.toast-body').textContent = scanProgressLabel(p.label || '');
   const bar = progressEl.querySelector('.toast-bar');
   if (p.total) {
     bar.classList.remove('indeterminate');
