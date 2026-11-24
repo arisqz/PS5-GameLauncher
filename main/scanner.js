@@ -365,6 +365,7 @@ async function scanSteam({ owned = false } = {}) {
     }
   }
   const installedCount = games.length;
+  let ownedError = null;
   if (owned) {
     try {
       const { ownedNotInstalled } = require('./steamowned');
@@ -386,9 +387,10 @@ async function scanSteam({ owned = false } = {}) {
       }
     } catch (err) {
       console.warn('[scan] owned Steam games', err.message);
+      ownedError = err.message;
     }
   }
-  return { found: true, steamPath, persona: user.persona, games, installedCount, playtime: user.playtime };
+  return { found: true, steamPath, persona: user.persona, games, installedCount, ownedError, playtime: user.playtime };
 }
 
 /* ------------------------------------------------------------------ */
