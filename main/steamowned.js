@@ -52,17 +52,18 @@ function reader(buf, start, strings = null) {
   return { kv, get pos() { return o; }, set pos(v) { o = v; } };
 }
 
-/** Package id -> app ids, from packageinfo.vdf (format 27 / 28). */
+/** Package id -> app ids, from packageinfo.vdf (format 27 / 28; newer versions are read like 28). */
 function readPackages(buf) {
   const magic = buf.readUInt32LE(0);
-  if (magic !== 0x06565527 && magic !== 0x06565528) throw new Error('unknown packageinfo.vdf format');
+  const version = magic & 0xff;
+  if (magic >>> 8 !== 0x065655 || version < 0x27) throw new Error(`unknown packageinfo.vdf format (0x${magic.toString(16)})`);
   const r = reader(buf, 8);
   const out = new Map();
   for (;;) {
     const id = buf.readUInt32LE(r.pos);
     r.pos += 4;
     if (id === 0xffffffff) break;
-    r.pos += 20 + 4 + (magic === 0x06565528 ? 8 : 0); // sha1, change number, PICS token
+    r.pos += 20 + 4 + (version >= 0x28 ? 8 : 0); // sha1, change number, PICS token
     const data = r.kv();
     const p = data[String(id)] || Object.values(data)[0] || {};
     out.set(id, Object.values(p.appids || {}).map(Number));
@@ -70,12 +71,14 @@ function readPackages(buf) {
   return out;
 }
 
-/** Calls fn(id, appinfo) for the apps in `wanted` (a Set of numbers), from appinfo.vdf (format 28 / 29). */
+/** Calls fn(id, appinfo) for the apps in `wanted` (a Set of numbers), from appinfo.vdf (format 28 / 29; newer versions are read like 29). */
 function eachApp(buf, wanted, fn) {
   const magic = buf.readUInt32LE(0);
+  const version = magic & 0xff;
+  if (magic >>> 8 !== 0x075644 || version < 0x28) throw new Error(`unknown appinfo.vdf format (0x${magic.toString(16)})`);
   let strings = null;
   let start = 8;
-  if (magic === 0x07564429) {
+  if (version >= 0x29) {
     // Format 29: key names come from a string table at the offset after the universe.
     let p = Number(buf.readBigInt64LE(8));
     const count = buf.readUInt32LE(p);
@@ -87,7 +90,7 @@ function eachApp(buf, wanted, fn) {
       p = e + 1;
     }
     start = 16;
-  } else if (magic !== 0x07564428) throw new Error('unknown appinfo.vdf format');
+  }
   const r = reader(buf, start, strings);
   for (;;) {
     const id = buf.readUInt32LE(r.pos);
@@ -167,17 +170,19 @@ async function ownedNotInstalled(steamPath, installed, { exclude = () => false }
   // Several accounts on this PC share the cache: keep what the signed-in one knows.
   const accounts = await steamAccounts(steamPath);
   const mine = accounts.count > 1 && accounts.active ? await accountApps(steamPath, accounts.active) : null;
-  const out = [];
+  const all = [];
   eachApp(ai, owned, (id, a) => {
     const c = a.common || {};
     const type = String(c.type || '').toLowerCase();
     if ((type !== 'game' && type !== 'demo') || !c.name) return;
     if (c.oslist && !/windows/i.test(String(c.oslist))) return;
     if (installed.has(String(id)) || NOT_GAMES.test(c.name) || exclude(String(id), c.name)) return;
-    if (mine && !mine.has(String(id))) return;
-    out.push({ appid: String(id), name: c.name, demo: type === 'demo' });
+    all.push({ appid: String(id), name: c.name, demo: type === 'demo' });
   });
-  return out;
+  // That account filter only knows games the account has touched; if it would
+  // leave nothing, it's not to be trusted (wrong account guessed): show them all.
+  const out = mine ? all.filter((g) => mine.has(g.appid)) : all;
+  return out.length || !all.length ? out : all;
 }
 
 /** What installing a game needs: its install folder and sizes (Windows, public branch). */
