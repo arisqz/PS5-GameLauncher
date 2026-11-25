@@ -394,8 +394,7 @@ html.windowed .boot {
     )
     no-repeat;
   background-size: var(--glint-size) 100%;
-  background-position: 115% 0;
-  opacity: 0;
+  background-position: 150% 0;
   pointer-events: none;
   z-index: 2;
 }
@@ -438,12 +437,16 @@ html.windowed .boot {
   100% { --ring-a: 25deg; }
 }
 
-/* The band slides in from the left and out to the right in 0.95 s, eased;
-   its soft edges do the fading. */
+/* The band slides in from the left and out to the right, eased; its soft
+   edges do the fading. It starts and ends wholly beside the element (the
+   band is 3x as wide: at 150% it lies just past the right edge, at -50% just
+   past the left), so it never pops in or out and leaves no trace while
+   waiting, whatever the element's shape (its tilt would reach into a square
+   or round one from closer). 1.47 s keeps the speed of the old 0.95 s sweep,
+   which began and ended with the band partly on the element. */
 @keyframes glint {
-  0% { opacity: 1; background-position: 115% 0; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  19% { opacity: 1; background-position: -15% 0; }
-  19.01%, 100% { opacity: 0; background-position: -15% 0; }
+  0% { background-position: 150% 0; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  29.4%, 100% { background-position: -50% 0; }
 }
 
 .reduce-motion .fx::after {
