@@ -56,8 +56,23 @@ const held = new Map(); // action -> { next, count }
 let cursorTimer = null;
 let suppressMouseUntil = 0;
 
+// The direction of the last press if it was a move (any device), for the focus wave.
+const DIR_ANGLE = { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0 };
+let lastDir = null;
+
 export function setHandler(fn) {
-  handler = fn;
+  handler = (action, meta) => {
+    lastDir = Object.hasOwn(DIR_ANGLE, action) ? { angle: DIR_ANGLE[action], at: performance.now() } : null;
+    return fn(action, meta);
+  };
+}
+
+/**
+ * Angle (radians, 0 = right, PI/2 = down) of the move just pressed, or null
+ * if the last press (within maxAge ms) wasn't a move.
+ */
+export function lastMoveAngle(maxAge = 250) {
+  return lastDir && performance.now() - lastDir.at <= maxAge ? lastDir.angle : null;
 }
 
 export function getDevice() {

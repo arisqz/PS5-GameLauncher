@@ -5,7 +5,7 @@ import { icon } from '../icons.js';
 import { state, on, api, artUrl, sortGames, gamesIn, setSetting, lastActive, emit, currentGame, activeDownloads, findGame, isInstalled } from '../state.js';
 import { sfx } from '../sound.js';
 import { mouseActive, connectedPads, rumble } from '../input.js';
-import { mountOverlay, FocusList, topOverlay, waveAcross } from '../ui/overlay.js';
+import { mountOverlay, FocusList, topOverlay } from '../ui/overlay.js';
 import { confirmDialog, sliderDialog, optionsMenu, textDialog } from '../ui/dialogs.js';
 import { party, discordCmd, discordConnect, statusText, inCall, conversations, discordGuilds, discordVoiceChannels, discordDirectChats, joinVoice } from '../discord.js';
 import { steam, loadFriends, openFriend, friendsList, onlineCount, presenceText } from '../steamfriends.js';
@@ -1848,10 +1848,8 @@ export class QuickMenu {
   handle(action) {
     if (this.customizing) {
       if (action === 'left' || action === 'right') {
-        if (this.barNav.move(action === 'left' ? -1 : 1)) {
-          sfx.move();
-          waveAcross(this.barNav.current, action === 'left' ? -1 : 1);
-        } else sfx.bump();
+        if (this.barNav.move(action === 'left' ? -1 : 1)) sfx.move();
+        else sfx.bump();
       } else if (action === 'confirm') this.toggleCustom(this.barNav.index);
       else if (action === 'back' || action === 'options') this.exitCustomize();
       else sfx.bump();

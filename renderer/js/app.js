@@ -5,7 +5,7 @@ import { sfx, configureSound, setAmbient, unlockAudio, resetAudio, setSoundPacks
 import { themeActive, setThemeConditions } from './thememusic.js';
 import { background } from './background.js';
 import { heroBg } from './ui/herobg.js';
-import { topOverlay } from './ui/overlay.js';
+import { topOverlay, initFocusWave } from './ui/overlay.js';
 import { initToasts } from './ui/toast.js';
 import { HomeView } from './views/home.js';
 import { LibraryView } from './views/library.js';
@@ -215,6 +215,7 @@ async function main() {
   applyWindow();
   background.init();
   initToasts();
+  initFocusWave();
 
   const home = new HomeView(router);
   router.register(home);
