@@ -730,8 +730,25 @@
   box-shadow: none;
 }
 
-/* Selected control-centre icon: colours invert (light disc, dark glyph). */
+/* Selected control-centre icon: colours invert (light disc, dark glyph).
+   The disc fades in and out through --qm-disc (a gradient can't transition
+   itself), and the glyph changes colour half-way, so it always stands out:
+   no blank white disc when an icon gains focus, no dark glyph on the dark
+   bar when it loses it. */
+@property --qm-disc {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
 .qm-btn {
+  --qm-disc: 0;
+  background: radial-gradient(
+    circle at 50% 30%,
+    rgb(255 255 255 / var(--qm-disc)) 0%,
+    rgb(230 231 234 / var(--qm-disc)) 55%,
+    rgb(201 203 208 / var(--qm-disc)) 100%
+  );
   --fx-r: 3.3rem;
   --fx-gap: 0.42rem;
   --fx-w: 0.26rem;
@@ -741,7 +758,13 @@
 
 .qm-btn.focused {
   --qm-indicator-shift: calc(0.9rem + var(--fx-gap) + var(--fx-w) + 0.45rem);
-  background: radial-gradient(circle at 50% 30%, #ffffff 0%, #e6e7ea 55%, #c9cbd0 100%);
+  --qm-disc: 1;
+  background: radial-gradient(
+    circle at 50% 30%,
+    rgb(255 255 255 / var(--qm-disc)) 0%,
+    rgb(230 231 234 / var(--qm-disc)) 55%,
+    rgb(201 203 208 / var(--qm-disc)) 100%
+  );
   color: #16181d;
   box-shadow: 0 0.6rem 1.8rem rgba(0, 0, 0, 0.45);
   transform: scale(1.05);
@@ -1807,7 +1830,7 @@
 
 /* A panel open: the other controls in the bar step back (as on the PS5), its own stays lit. */
 .qm-btn {
-  transition: background 0.2s, box-shadow 0.2s, color 0.2s, opacity 0.25s var(--ease), transform 0.25s var(--ease-out);
+  transition: --qm-disc 0.2s var(--ease), box-shadow 0.2s, color 0.2s steps(2, jump-none), opacity 0.25s var(--ease), transform 0.25s var(--ease-out);
 }
 
 .qm.panel-open .qm-btn:not(.active):not(.focused) {
