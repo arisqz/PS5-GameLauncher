@@ -4,7 +4,8 @@
  * the light vanish in one frame. This lets it finish fading instead: it
  * notes when each element starts shining and, if focus leaves during a
  * sweep, carries the band on from where it was while it fades out, as the
- * ring does.
+ * ring does. While the animation is paused (behind a dimmed app) it notes
+ * where it was held instead.
  */
 
 // Keep in step with the glint animation in base.css.
@@ -15,7 +16,20 @@ const FROM = 150;
 const TO = -50;
 const FADE = 250;
 
-const started = new WeakMap();
+// Each shining element: { since: when its sweep cycle started, held: how far
+// along its paused animation is held (or null), anim: the animation }.
+const started = new Map();
+
+/** Brings an element's entry up to date with its animation. */
+function sync(entry) {
+  const a = entry.anim;
+  if (!a || a.playState === 'idle') return;
+  if (a.playState === 'paused') entry.held = a.currentTime;
+  else if (a.startTime !== null) {
+    entry.since = a.startTime;
+    entry.held = null;
+  }
+}
 
 // The elements the glint animation runs on (the .fx::after rules in base.css).
 const SHINES = '.fx.focused, .focused > .fx, .fx.sel:not(.tile)';
@@ -27,9 +41,9 @@ function hostOf(el) {
 
 const at = (t) => `${FROM + ((TO - FROM) * t) / SWEEP}% 0`;
 
-function fadeOut(host, since) {
+function fadeOut(host, { since, held }) {
   if (document.body.classList.contains('reduce-motion')) return;
-  const t = (document.timeline.currentTime - since - DELAY) % PERIOD;
+  const t = ((held ?? document.timeline.currentTime - since) - DELAY) % PERIOD;
   if (!(t >= 0 && t < SWEEP)) return;
   const end = Math.min(SWEEP, t + FADE);
   host.animate(
@@ -52,16 +66,13 @@ export function initGlintFade(root = document.body) {
       seen.add(host);
       const shines = host.matches(SHINES);
       if (shines && !started.has(host)) {
-        started.set(host, now);
+        const entry = { since: now, held: null, anim: null };
+        started.set(host, entry);
         // Use the animation's own start once the browser has started it.
         requestAnimationFrame(() => {
-          const a = host.getAnimations({ subtree: true }).find((x) => x.animationName === 'glint' && x.effect && x.effect.target === host);
-          if (!a) return;
-          a.ready
-            .then(() => {
-              if (a.startTime !== null && started.has(host)) started.set(host, a.startTime);
-            })
-            .catch(() => {});
+          if (started.get(host) !== entry) return;
+          entry.anim = host.getAnimations({ subtree: true }).find((x) => x.animationName === 'glint' && x.effect && x.effect.target === host) || null;
+          if (entry.anim) entry.anim.ready.then(() => sync(entry)).catch(() => {});
         });
       }
       else if (!shines && started.has(host)) {
@@ -69,5 +80,17 @@ export function initGlintFade(root = document.body) {
         started.delete(host);
       }
     }
+    // A class change elsewhere (the app dimming behind the quick menu) can
+    // pause or resume the shines: note it once the styles have caught up.
+    requestAnimationFrame(() => {
+      for (const [host, entry] of started) {
+        if (!host.isConnected) {
+          started.delete(host);
+          continue;
+        }
+        sync(entry);
+        if (entry.anim) entry.anim.ready.then(() => sync(entry)).catch(() => {});
+      }
+    });
   }).observe(root, { subtree: true, attributes: true, attributeFilter: ['class'] });
 }

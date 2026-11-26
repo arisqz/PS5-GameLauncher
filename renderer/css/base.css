@@ -448,8 +448,6 @@ html.windowed .boot {
   0% { background-position: 150% 0; }
   30%, 100% { background-position: -50% 0; }
 }
-  29.4%, 100% { background-position: -50% 0; }
-}
 
 .reduce-motion .fx::after {
   display: none;
