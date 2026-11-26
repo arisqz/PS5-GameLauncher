@@ -7,6 +7,7 @@ import { background } from './background.js';
 import { heroBg } from './ui/herobg.js';
 import { topOverlay } from './ui/overlay.js';
 import { initToasts } from './ui/toast.js';
+import { initGlintFade } from './ui/glint.js';
 import { HomeView } from './views/home.js';
 import { LibraryView } from './views/library.js';
 import { SettingsView } from './views/settings.js';
@@ -214,6 +215,7 @@ async function main() {
   applySettings();
   applyWindow();
   background.init();
+  initGlintFade();
   initToasts();
 
   const home = new HomeView(router);
