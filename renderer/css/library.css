@@ -108,6 +108,14 @@
 }
 
 
+/* The ring grows with the button (it is drawn by it), so it doesn't also
+   shrink into place on its own, which would go on after the button has
+   settled. */
+.lib-filter::before {
+  transform: none;
+  transition: opacity 0.2s var(--ease);
+}
+
 .lib-filter.filtered {
   box-shadow: inset 0 0 0 0.25rem var(--blue);
 }
