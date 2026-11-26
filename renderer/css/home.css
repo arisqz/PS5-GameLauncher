@@ -37,6 +37,45 @@
   color: #fff;
 }
 
+/* The name, plain and as when selected, stacked in one cell (see home.js).
+   Only the PlayStation font gives the selected name its own weight; there
+   the two cross-fade, the incoming one first and the outgoing one after it,
+   so the text never thins out halfway. */
+.tb-tab {
+  display: inline-grid;
+}
+
+.tb-tab-name {
+  grid-area: 1 / 1;
+  justify-self: center;
+}
+
+.tb-tab-name.sel {
+  display: none;
+}
+
+html.font-sst .tb-tab-name.sel {
+  display: inline;
+}
+
+html.font-sst .tb-tab-name {
+  transition: opacity 0.15s var(--ease) 0.1s;
+}
+
+html.font-sst .tb-tab-name.sel,
+html.font-sst .tb-tab.active .tb-tab-name:not(.sel) {
+  opacity: 0;
+}
+
+html.font-sst .tb-tab.active .tb-tab-name.sel {
+  opacity: 1;
+}
+
+html.font-sst .tb-tab.active .tb-tab-name.sel,
+html.font-sst .tb-tab:not(.active) .tb-tab-name:not(.sel) {
+  transition-delay: 0s;
+}
+
 .tb-tab.focused {
   box-shadow: var(--ring);
   background: rgba(255, 255, 255, 0.08);

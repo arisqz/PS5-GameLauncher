@@ -844,7 +844,7 @@ html.font-sst {
 
 /* The PS5's emphasis: the selected Games / Media tab is medium and the hub's
    buttons bold; a game's name and the hub's card headings are light like the rest. */
-html.font-sst .tb-tab.active {
+html.font-sst .tb-tab-name.sel {
   font-weight: 600;
 }
 
