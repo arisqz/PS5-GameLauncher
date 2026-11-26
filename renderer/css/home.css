@@ -522,7 +522,7 @@
   background: rgba(30, 32, 40, 0.74);
   backdrop-filter: blur(1.4rem);
   color: #fff;
-  transition: background 0.25s var(--ease), color 0.25s var(--ease), box-shadow 0.25s var(--ease), transform 0.3s var(--ease-out);
+  transition: background 0.25s var(--ease), color 0.035s steps(1, end), box-shadow 0.25s var(--ease), transform 0.3s var(--ease-out);
 }
 
 .hub-btn svg {
@@ -1075,4 +1075,13 @@
   place-items: center;
   font-size: 2rem;
   color: #fff;
+}
+
+/* These buttons grow when focused, and the ring grows with them (it is drawn
+   by the button), so it doesn't also shrink into place on its own, which
+   would go on after the button has settled. */
+.tb-icon::before,
+.hub-btn::before {
+  transform: none;
+  transition: opacity 0.2s var(--ease);
 }

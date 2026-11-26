@@ -457,7 +457,7 @@
   font-size: 3rem;
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
-  transition: background 0.18s, box-shadow 0.18s, transform 0.25s var(--ease-out), color 0.18s;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.25s var(--ease-out), color 0.054s steps(1, end);
 }
 
 .qp-btn.big {
@@ -1445,7 +1445,7 @@
   place-items: center;
   background: rgba(255, 255, 255, 0.13);
   color: #fff;
-  transition: background 0.18s, color 0.18s, transform 0.18s;
+  transition: background 0.18s, color 0.054s steps(1, end), transform 0.18s;
 }
 
 .gb-pill {
@@ -1822,4 +1822,13 @@
 /* The message sits on the black band, not under it. */
 .qm-custom-msg {
   z-index: 2;
+}
+
+/* These buttons grow when focused, and the ring grows with them (it is drawn
+   by the button), so it doesn't also shrink into place on its own, which
+   would go on after the button has settled. */
+.qp-btn::before,
+.qm-btn::before {
+  transform: none;
+  transition: opacity 0.2s var(--ease);
 }

@@ -160,7 +160,7 @@
   border-radius: 3.2rem;
   font-size: 2.4rem;
   background: rgba(255, 255, 255, 0.1);
-  transition: background 0.2s, color 0.2s, transform 0.25s var(--ease-out), box-shadow 0.2s;
+  transition: background 0.2s, color 0.06s steps(1, end), transform 0.25s var(--ease-out), box-shadow 0.2s;
 }
 
 .dlg-btn.focused {
@@ -223,7 +223,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.8rem;
-  transition: background 0.12s, transform 0.15s var(--ease-out), box-shadow 0.12s;
+  transition: background 0.12s, color 0.036s steps(1, end), transform 0.15s var(--ease-out), box-shadow 0.12s;
 }
 
 .osk-key svg {
@@ -1297,7 +1297,7 @@ body.reduce-motion .launch-overlay {
   font-size: 4.4rem;
   color: #fff;
   background: transparent;
-  transition: background 0.18s, color 0.18s, transform 0.18s var(--ease-out), box-shadow 0.18s;
+  transition: background 0.18s, color 0.054s steps(1, end), transform 0.18s var(--ease-out), box-shadow 0.18s;
 }
 
 .cb-btn .rec-dot {
@@ -1568,7 +1568,7 @@ body.reduce-motion .launch-overlay {
   background: rgba(255, 255, 255, 0.08);
   font-size: 2.6rem;
   font-weight: 600;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.045s steps(1, end);
   --fx-r: 3.7rem;
 }
 
@@ -2076,3 +2076,12 @@ body[data-input="mouse"] .fb-crumb:hover {
 .sgdb-store .ss-card { min-width: 0; }
 .sgdb-store .ss-img img { object-fit: contain; }
 .sgdb-store .ss-foot { flex-wrap: wrap; gap: 1.4rem; }
+
+/* These buttons grow when focused, and the ring grows with them (it is drawn
+   by the button), so it doesn't also shrink into place on its own, which
+   would go on after the button has settled. */
+.dlg-btn::before,
+.osk-key::before {
+  transform: none;
+  transition: opacity 0.2s var(--ease);
+}
