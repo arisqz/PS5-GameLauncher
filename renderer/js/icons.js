@@ -135,9 +135,18 @@ const P = {
     '<mask id="clm-info"><rect width="24" height="24" fill="#fff"/><circle cx="12" cy="7.6" r="1.35" fill="#000"/><rect x="10.85" y="10.3" width="2.3" height="7" rx="1.1" fill="#000"/></mask><circle cx="12" cy="12" r="9.6" fill="currentColor" stroke="none" mask="url(#clm-info)"/>',
 };
 
+let maskId = 0;
+
+/**
+ * The icon's lines and shapes are drawn as a mask and the colour is painted
+ * through it once, so where they meet or cross (a note's stem and head, a
+ * magnifier's handle and lens) a see-through colour (most icons use one) doesn't
+ * add up into a brighter spot.
+ */
 export function icon(name, cls = '') {
   const p = P[name] || P.info;
-  return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  const id = `ic-${++maskId}`;
+  return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><mask id="${id}" maskUnits="userSpaceOnUse" x="-12" y="-12" width="48" height="48"><g color="#fff">${p}</g></mask><rect x="-12" y="-12" width="48" height="48" fill="currentColor" stroke="none" mask="url(#${id})"/></svg>`;
 }
 
 export function iconEl(name, cls = '') {
