@@ -1161,7 +1161,10 @@
   --glint: 0.1;
 }
 
+/* No light disc while customizing; --qm-disc stays 0 too, or the disc would
+   flash back in and fade out on the button focus leaves. */
 .qm.customizing .qm-btn.focused {
+  --qm-disc: 0;
   background: none;
   color: #fff;
   box-shadow: none;
