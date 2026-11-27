@@ -437,6 +437,13 @@ export class QuickMenu {
   renderCards(animate) {
     const keep = this.cardNav ? this.cardNav.index : 0;
     const wasFocused = this.zone === 'cards';
+    // Rebuilt while the menu is still coming in (on the first open, a card's
+    // data often arrives a frame or two late): carry on with the entry
+    // animation from where it is, rather than showing the cards at once.
+    const since = (performance.now() - (this.openedAt || 0)) / 1000;
+    if (animate) this.openedAt = performance.now();
+    else if (since < 0.8) animate = true;
+    const lag = animate && this.openedAt ? (performance.now() - this.openedAt) / 1000 : 0;
     this.cards = this.cardDefs();
     const cardEls = this.cards.map((c, i) => {
       let img;
@@ -475,7 +482,7 @@ export class QuickMenu {
         'button',
         {
           class: `qm-card fx${c.media ? ' media' : ''}${c.playing ? ' playing' : ''}${c.download ? ' download' : ''}${c.capture ? ' capture' : ''}${animate ? ' anim' : ''}`,
-          style: { animationDelay: `${0.06 + i * 0.05}s` },
+          style: { animationDelay: `${(0.06 + i * 0.05 - lag).toFixed(3)}s` },
           onmouseenter: () => mouseActive() && this.focus('cards', i, true),
           onclick: () => this.activateCard(i),
         },
