@@ -1076,3 +1076,806 @@
   font-size: 2rem;
   color: #fff;
 }
+
+/* ------------------------------------------------------------------ */
+/* Explore (ui/explore.js): the first tile, and its widgets under the   */
+/* tile row, laid out as on the PS5 (measured from a 2560 × 1440 shot:  */
+/* "Welcome back" at 48.5rem, widgets 50.4 × 15.2rem, 2.4rem apart).    */
+/* ------------------------------------------------------------------ */
+.explore-art {
+  background: linear-gradient(160deg, #26282f, #111217);
+}
+
+.explore-art svg.ic {
+  width: 0.85em;
+  height: 0.85em;
+  stroke-width: 1.45;
+}
+
+.hub .explore {
+  display: none;
+}
+
+.hub.explore-on .explore {
+  display: block;
+}
+
+.hub.explore-on .hub-cards {
+  display: none;
+}
+
+.explore {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 48.5rem;
+  height: 57rem;
+  transition: transform calc(0.55s * var(--spd)) var(--ease-out);
+}
+
+.ex-welcome {
+  margin-left: 17.4rem;
+  font-size: 3.4rem;
+  font-weight: 300;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0.2rem 1rem rgba(0, 0, 0, 0.4);
+}
+
+.ex-viewport {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4.3rem;
+  height: 50.4rem;
+}
+
+.ex-grid {
+  position: absolute;
+  left: 17.4rem;
+  top: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 50.4rem);
+  grid-template-rows: repeat(3, 15.2rem);
+  gap: 2.4rem;
+  transition: transform calc(0.45s * var(--spd)) var(--ease-out);
+}
+
+.explore.enter .ex-welcome {
+  animation: fadeUp calc(0.55s * var(--spd)) var(--ease-out) both;
+}
+
+.explore.enter .ex-w {
+  animation: fadeUp calc(0.55s * var(--spd)) var(--ease-out) both;
+}
+
+.explore.enter .ex-w:nth-child(4) { animation-delay: 0.04s; }
+.explore.enter .ex-w:nth-child(5),
+.explore.enter .ex-w:nth-child(6) { animation-delay: 0.08s; }
+.explore.enter .ex-w:nth-child(7),
+.explore.enter .ex-w:nth-child(8) { animation-delay: 0.12s; }
+
+.ex-w {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  padding: 2rem 2.4rem;
+  border-radius: 1.2rem;
+  background: rgba(30, 33, 43, 0.8);
+  backdrop-filter: blur(1.6rem);
+  color: #fff;
+  text-align: left;
+  --fx-r: 1.2rem;
+  transition: background 0.2s var(--ease);
+}
+
+.ex-w.focused {
+  background: rgba(40, 44, 57, 0.86);
+}
+
+.ex-w svg.ic {
+  flex: none;
+}
+
+/* Explore scrolled in: the tile row goes, its name stays top left. */
+.explore-head {
+  position: absolute;
+  left: 5rem;
+  top: 5rem;
+  display: flex;
+  align-items: center;
+  gap: 4.8rem;
+  font-size: 3rem;
+  font-weight: 300;
+  opacity: 0;
+  transform: translateY(3rem);
+  pointer-events: none;
+  transition: opacity calc(0.35s * var(--spd)) var(--ease), transform calc(0.55s * var(--spd)) var(--ease-out);
+}
+
+.eh-icon {
+  width: 7.4rem;
+  height: 7.4rem;
+  border-radius: 1.2rem;
+  display: grid;
+  place-items: center;
+  background: rgba(42, 44, 52, 0.92);
+  font-size: 4.6rem;
+}
+
+.eh-icon svg.ic {
+  width: 0.92em;
+  height: 0.92em;
+  stroke-width: 1.5;
+}
+
+.home-view.explore-deep .explore-head {
+  opacity: 1;
+  transform: none;
+}
+
+.home-view.explore-deep .topbar,
+.home-view.explore-deep .carousel,
+.home-view.explore-deep .tile-title {
+  opacity: 0;
+  transform: translateY(-6rem);
+  pointer-events: none;
+  transition: opacity calc(0.3s * var(--spd)) var(--ease), transform calc(0.55s * var(--spd)) var(--ease-out);
+}
+
+.home-view.explore-deep .explore {
+  transform: translateY(-13rem);
+}
+
+/* Shared bits */
+.ex-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 2.3rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ex-head svg.ic {
+  font-size: 2.6rem;
+}
+
+.ex-head.big {
+  font-size: 2.5rem;
+}
+
+.ex-title {
+  font-size: 2.6rem;
+  font-weight: 600;
+}
+
+.ex-dim {
+  font-size: 2rem;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ex-bar {
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+
+.ex-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+  transition: width 0.6s var(--ease-out);
+}
+
+/* Your activity (where the PS5 has trophies) */
+.ex-activity {
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.ex-stats {
+  display: flex;
+  gap: 3.2rem;
+  font-size: 2.3rem;
+}
+
+.ex-stat {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ex-stat svg.ic {
+  font-size: 2.6rem;
+  color: #e9c46a;
+}
+
+.ex-stat b {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ex-most {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 2.2rem;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.ex-most svg.ic {
+  font-size: 2.5rem;
+  color: #e9c46a;
+}
+
+.ex-most-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ex-most-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 2.1rem;
+  color: var(--text-2);
+  margin-bottom: -0.6rem;
+}
+
+.ex-most-line span:last-child {
+  font-weight: 600;
+  color: #fff;
+}
+
+/* DualSense */
+.ex-pad {
+  align-items: center;
+  gap: 2.6rem;
+}
+
+.ex-ring {
+  position: relative;
+  flex: none;
+  width: 11.4rem;
+  height: 11.4rem;
+}
+
+.ex-ring > svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ex-ring > svg circle {
+  fill: none;
+  stroke-width: 10;
+}
+
+.ex-ring .trk {
+  stroke: rgba(255, 255, 255, 0.14);
+}
+
+.ex-ring .lvl {
+  stroke: #12a5f5;
+  transition: stroke-dasharray 0.7s var(--ease-out);
+}
+
+.ex-ring.unknown .lvl {
+  stroke: rgba(255, 255, 255, 0.45);
+}
+
+.ex-ring.none .lvl {
+  stroke: transparent;
+}
+
+.ex-ring-in {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 4.4rem;
+}
+
+.ex-ring.none .ex-ring-in {
+  color: var(--text-3);
+}
+
+.ex-ring-in small {
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ex-pad-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem 1.2rem;
+  min-width: 0;
+}
+
+.ex-pad-name {
+  flex: 1 0 100%;
+  font-size: 2.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ex-batt {
+  position: relative;
+  width: 3.8rem;
+  height: 1.8rem;
+  padding: 0.25rem;
+  border: 0.22rem solid rgba(255, 255, 255, 0.85);
+  border-radius: 0.4rem;
+}
+
+.ex-batt::after {
+  content: "";
+  position: absolute;
+  right: -0.6rem;
+  top: 0.35rem;
+  width: 0.3rem;
+  height: 0.7rem;
+  border-radius: 0 0.2rem 0.2rem 0;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.ex-batt i {
+  display: block;
+  height: 100%;
+  border-radius: 0.15rem;
+  background: #fff;
+}
+
+.ex-batt.low i {
+  background: #ff5a5a;
+}
+
+.ex-batt.charging i {
+  background: #5ad46b;
+}
+
+.ex-batt-pct {
+  font-size: 1.9rem;
+  color: var(--text-2);
+}
+
+/* PC storage (L1 / R1: another drive) */
+.ex-storage {
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.ex-st-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ex-st-text .ex-head {
+  margin-bottom: 0.4rem;
+}
+
+.ex-st-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ex-st-text.from-left {
+  animation: exSlideL 0.45s var(--ease-out);
+}
+
+.ex-st-text.from-right {
+  animation: exSlideR 0.45s var(--ease-out);
+}
+
+@keyframes exSlideL {
+  from { opacity: 0; transform: translateX(-2.4rem); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes exSlideR {
+  from { opacity: 0; transform: translateX(2.4rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.ex-key {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 2rem;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.ex-dot {
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+}
+
+.ex-dot.games { background: #3d8bfd; }
+.ex-dot.media { background: #9b5cf6; }
+.ex-dot.other { background: #f59e0b; }
+
+.ex-donut {
+  position: relative;
+  flex: none;
+  align-self: flex-end;
+  width: 10.6rem;
+  height: 10.6rem;
+}
+
+.ex-donut > svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ex-donut circle {
+  fill: none;
+  stroke-width: 9;
+}
+
+.ex-donut .trk {
+  stroke: rgba(255, 255, 255, 0.12);
+}
+
+.ex-donut .seg {
+  stroke-dasharray: 0 100;
+  transition: stroke-dasharray 0.75s var(--ease-out), stroke-dashoffset 0.75s var(--ease-out);
+}
+
+.ex-donut .seg.games { stroke: #3d8bfd; }
+.ex-donut .seg.media { stroke: #9b5cf6; }
+.ex-donut .seg.other { stroke: #f59e0b; }
+
+.ex-free {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.15;
+}
+
+.ex-free b {
+  font-size: 1.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ex-free small {
+  font-size: 1.6rem;
+  color: var(--text-2);
+}
+
+.ex-pager {
+  position: absolute;
+  right: 1.8rem;
+  top: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.25s var(--ease);
+}
+
+.ex-storage.focused .ex-pager {
+  opacity: 1;
+}
+
+.ex-dots {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.ex-dots i {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transition: background 0.25s;
+}
+
+.ex-dots i.on {
+  background: #fff;
+}
+
+/* Game captures: the latest one fills it */
+.ex-captures {
+  padding: 0;
+}
+
+.ex-cap-img,
+.ex-cap-shade {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.ex-cap-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ex-cap-shade {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 40%, rgba(0, 0, 0, 0.7));
+}
+
+.ex-cap-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  font-size: 2rem;
+  color: var(--text-3);
+}
+
+.ex-cap-empty svg.ic {
+  font-size: 6rem;
+  stroke-width: 1.2;
+}
+
+.ex-cap-label {
+  position: absolute;
+  left: 2.4rem;
+  bottom: 2.2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 2.4rem;
+  font-weight: 600;
+  text-shadow: 0 0.1rem 0.6rem rgba(0, 0, 0, 0.5);
+}
+
+.ex-cap-label svg.ic {
+  font-size: 2.8rem;
+}
+
+.ex-cap-game {
+  position: absolute;
+  left: 2rem;
+  top: 2rem;
+  max-width: calc(100% - 4rem);
+  padding: 0.4rem 1rem;
+  border-radius: 0.6rem;
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 1.8rem;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Friends */
+.ex-friends {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ex-avatars {
+  display: flex;
+  min-height: 4.8rem;
+}
+
+.ex-av,
+.ex-friend > img,
+.ex-friend > span:first-child {
+  flex: none;
+  width: 4.8rem;
+  height: 4.8rem;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #3a3f4d;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.ex-av {
+  margin-left: -1.2rem;
+  border: 0.3rem solid rgb(30, 33, 43);
+}
+
+.ex-av:first-child {
+  margin-left: 0;
+}
+
+.ex-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ex-friends .ex-title {
+  margin-top: 1.6rem;
+}
+
+.ex-online {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 0.4rem;
+  font-size: 2rem;
+  color: var(--text-2);
+}
+
+.ex-on {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #3ccf5a;
+}
+
+.ex-friend-list {
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+.ex-friend {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  min-width: 0;
+}
+
+.ex-friend > img,
+.ex-friend > span:first-child {
+  width: 4.2rem;
+  height: 4.2rem;
+  object-fit: cover;
+}
+
+.ex-friend > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ex-friend b {
+  font-size: 2rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ex-friend em {
+  font-style: normal;
+  font-size: 1.8rem;
+  color: #6fd38a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ex-friends-setup {
+  margin-top: 1.4rem;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.ex-link {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+/* Recently played */
+.ex-recent {
+  align-items: center;
+  gap: 2rem;
+}
+
+.ex-recent-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ex-recent-name {
+  font-size: 2.3rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ex-recent-art {
+  position: relative;
+  flex: none;
+  width: 11.2rem;
+  height: 11.2rem;
+  border-radius: 0.8rem;
+  overflow: hidden;
+}
+
+.ex-recent-art .tile-art {
+  position: absolute;
+  inset: 0;
+}
+
+/* What's new (the PS5's blue tile) */
+.ex-news {
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(155deg, #3a86ff 0%, #1756e6 42%, #0b2f9c 100%);
+}
+
+.ex-news.focused {
+  background: linear-gradient(155deg, #4a90ff 0%, #1f61f0 42%, #0e37ad 100%);
+}
+
+.ex-news-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 70% 55% at 85% 12%, rgba(140, 210, 255, 0.55), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 10% 100%, rgba(10, 20, 80, 0.5), transparent 70%);
+}
+
+.ex-news > :not(.ex-news-glow) {
+  position: relative;
+}
+
+.ex-news-sub {
+  margin-top: 0.4rem;
+  font-size: 2.1rem;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.ex-news-more {
+  margin-top: 1.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.9rem;
+  font-weight: 600;
+}
+
+/* Downloads */
+.ex-downloads {
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.ex-dl-name {
+  font-size: 2.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

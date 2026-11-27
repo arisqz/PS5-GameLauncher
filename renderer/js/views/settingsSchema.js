@@ -14,7 +14,7 @@ import { LANGUAGES } from '../i18n.js';
 import { activeProfileId, pickProfileImage, updateProfile } from '../profiles.js';
 import { connectedPads } from '../input.js';
 import { refreshDualsense, modelName, powerLabel, batteryText, connectionLabel } from '../dualsense.js';
-import { loadStorage, storageItems } from './storage.js';
+import { loadStorage, loadCaptureSize, storageItems } from './storage.js';
 import { browseFiles, addGameFolder, addGameFiles, showFolder } from '../ui/filebrowser.js';
 import { loadEmulators, emulatorItems } from './emulators.js';
 import { loadEncoders, encoderItems } from './captureEncoders.js';
@@ -900,7 +900,7 @@ export function buildSchema(router) {
                 { value: 'sgdb', label: 'SteamGridDB' },
               ],
             },
-            { type: 'text', key: 'sgdbKey', label: 'SteamGridDB API Key', secret: true, placeholder: 'Optional — improves artwork for non-Steam games' },
+            { type: 'text', key: 'sgdbKey', label: 'SteamGridDB API Key', secret: true, placeholder: 'Paste or type your key' },
             { type: 'action', label: 'Get a SteamGridDB API Key', icon: 'external', run: () => api.openExternal('https://www.steamgriddb.com/profile/preferences/api') },
             {
               type: 'action',
@@ -940,7 +940,6 @@ export function buildSchema(router) {
                 { value: 'playtime', label: 'Most Played' },
               ],
             },
-            onOff('showStore', 'Show Store Tile'),
           ],
         },
         {
@@ -1153,7 +1152,11 @@ export function buildSchema(router) {
         },
         {
           label: 'Startup',
-          items: () => [onOff('launchAtStartup', 'Start with Windows'), onOff('welcomeScreen', 'Show Welcome Screen')],
+          items: () => [
+            onOff('launchAtStartup', 'Start with Windows'),
+            onOff('welcomeScreen', 'Show Welcome Screen'),
+            { type: 'action', icon: 'restart', label: 'Run Setup Again', run: async () => (await import('./setup.js')).runSetup() },
+          ],
         },
         {
           label: 'In-Game Overlay',
@@ -1259,7 +1262,7 @@ export function buildSchema(router) {
       icon: 'fStorage',
       desc: 'Drives, installed games and library data',
       sections: [
-        { label: 'Games and Apps', items: storageItems, onEnter: () => loadStorage() },
+        { label: 'PC Storage', items: () => storageItems(router), onEnter: () => (loadStorage(), loadCaptureSize()) },
         {
           label: 'Library Data',
           items: () => [
@@ -1306,3 +1309,6 @@ export function buildSchema(router) {
   const order = ['guide', 'library', 'home', 'notifications', 'users', 'system', 'storage', 'sound', 'screen', 'bluetooth', 'accessories', 'captures', 'about'];
   return order.map((id) => cats.find((c) => c.id === id)).filter(Boolean);
 }
+
+// The first-time setup (views/setup.js) shows some of the same rows.
+export { discordItems, themeMusicItems, packChoiceItems, loadPacks };

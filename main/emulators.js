@@ -12,10 +12,14 @@ const fsp = fs.promises;
 const path = require('path');
 const { hashId, tidyName } = require('./scanner');
 
-// yuzu and the forks that keep its config layout, by program name.
-const YUZU_FORKS = { eden: 'Eden', citron: 'Citron', sudachi: 'Sudachi', torzu: 'Torzu', suyu: 'suyu', yuzu: 'yuzu' };
-// What their game list shows from a game folder (installed NAND titles aside).
-const ROM_EXT = new Set(['.nsp', '.xci', '.nro']);
+// yuzu and the forks that keep its config layout, by program name. Lichii (an
+// Eden fork) also runs Switch 2 games.
+const YUZU_FORKS = { eden: 'Eden', lichii: 'Lichii', citron: 'Citron', sudachi: 'Sudachi', torzu: 'Torzu', suyu: 'suyu', yuzu: 'yuzu' };
+// The consoles, each with an emulator of its own (settings.emulators[platform]).
+const PLATFORMS = ['switch', 'switch2'];
+// What their game list shows from a game folder (installed NAND titles aside):
+// Switch games, and the Switch 2 forks' own packages (.nx archives, .nup).
+const ROM_EXT = new Set(['.nsp', '.xci', '.nro', '.nsz', '.xcz', '.nx', '.nup']);
 // Game folders that are the emulator's own storage, not folders on the PC.
 const SPECIAL_DIRS = new Set(['sdmc', 'usernand', 'sysnand']);
 
@@ -147,12 +151,81 @@ async function titleIdFromNsp(file) {
   return null;
 }
 
+/**
+ * A Switch 2 package's game: { titleId, base } (base: it holds the game itself,
+ * not only an update or add-on), or null when it can't be read.
+ *  - .nx (Lichii's archive): a 4 KiB header ("NXAR", two slots, the newer
+ *    generation wins) points at the Catalog ("NXCT"): its first application's
+ *    ID, and snapshots of type 0 (base), 1 (update), 2 (add-on) or 3
+ *    (standalone update).
+ *  - .nup: a superblock points at the TOC ("TOC\x01"), then 0x40-byte package
+ *    records: the title ID, the kind (0 base, 1 update, 2 add-on) and flags
+ *    (1: a standalone update).
+ */
+async function readPackage(file) {
+  let fh;
+  try {
+    fh = await fsp.open(file, 'r');
+    const read = async (len, at) => {
+      const b = Buffer.alloc(len);
+      const { bytesRead } = await fh.read(b, 0, len, at);
+      return bytesRead === len ? b : null;
+    };
+    const head = await read(8192, 0);
+    if (!head) return null;
+    if (head.toString('latin1', 0, 4) === 'NXAR') {
+      let slot = null;
+      for (const at of [0, 4096])
+        if (head.toString('latin1', at, at + 4) === 'NXAR' && (!slot || head.readBigUInt64LE(at + 216) > head.readBigUInt64LE(slot + 216))) slot = at;
+      const off = Number(head.readBigUInt64LE(slot + 24));
+      const size = Number(head.readBigUInt64LE(slot + 32));
+      if (size < 128 || size > 16 << 20) return null;
+      const cat = await read(size, off);
+      if (!cat || cat.toString('latin1', 0, 4) !== 'NXCT') return null;
+      const apps = cat.readUInt32LE(20);
+      const snaps = cat.readUInt32LE(28);
+      const appAt = Number(cat.readBigUInt64LE(48));
+      const snapAt = Number(cat.readBigUInt64LE(64));
+      if (!apps || appAt + 80 > size) return null;
+      const id = cat.readBigUInt64LE(appAt);
+      const first = cat.readUInt32LE(appAt + 20);
+      const count = cat.readUInt32LE(appAt + 24);
+      // 0 the game, 3 a standalone update (needs no base: it boots on its own,
+      // e.g. "mkw 1.8.0 update.nx"); 1 updates and 2 add-ons only go with a game.
+      let base = false;
+      for (let i = first; i < first + count && i < snaps; i++) if (snapAt + i * 120 + 5 <= size && [0, 3].includes(cat[snapAt + i * 120 + 4])) base = true;
+      return { titleId: id.toString(16).toUpperCase().padStart(16, '0'), base };
+    }
+    if (path.extname(file).toLowerCase() === '.nup') {
+      const tocAt = Number(head.readBigUInt64LE(8));
+      const toc = await read(0x30 + 16 * 0x40, tocAt);
+      if (!toc || toc.readUInt32LE(0) !== 0x01434f54) return null;
+      const n = Math.min(toc.readUInt32LE(4), 16);
+      let found = null;
+      for (let i = 0; i < n; i++) {
+        const at = 0x30 + i * 0x40;
+        const titleId = toc.readBigUInt64LE(at).toString(16).toUpperCase().padStart(16, '0');
+        // kind 0 the game; a standalone update (flag 1) boots on its own too.
+        const base = (toc[at + 0x18] === 0 || !!(toc[at + 0x19] & 1)) && /000$/.test(titleId);
+        if (!found || (base && !found.base)) found = { titleId, base };
+      }
+      return found;
+    }
+  } catch {
+  } finally {
+    if (fh) await fh.close().catch(() => {});
+  }
+  return null;
+}
+
 /** A game's name from its file name, without the tags around it. */
 function nameFromRom(file) {
   const n = path
     .basename(file, path.extname(file))
     .replace(/\[[^\]]*\]|\([^)]*\)|\{[^}]*\}/g, ' ')
     .replace(/\bv\d{3,}\b/gi, ' ')
+    .replace(/[_ ]v\d+(\.\d+)+$/i, ' ') // "Game_v1.1.0"
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // "NintendoSwitchSports"
     .replace(/_+/g, ' ')
     .replace(/\s+[-–]\s*$/, '');
   return tidyName(n);
@@ -182,7 +255,7 @@ async function romFiles(dir, deep, depth = 0, budget = { n: 0 }) {
  * The emulator's games, ready for the library. Each starts the emulator with
  * the ROM (-g), in full screen (-f) unless switched off.
  */
-async function scanSwitch(conf) {
+async function scanSwitch(conf, platform = 'switch') {
   if (!conf || !conf.exe) return { found: false, info: null, games: [] };
   const info = await detectSwitch(conf.exe);
   if (info.error) return { found: false, info, games: [] };
@@ -191,16 +264,22 @@ async function scanSwitch(conf) {
   for (const d of info.gameDirs) {
     for (const file of await romFiles(d.path, d.deep)) {
       const ext = path.extname(file).toLowerCase();
-      const titleId = titleIdFromName(path.basename(file)) || (ext === '.nsp' ? await titleIdFromNsp(file) : null);
+      let titleId = titleIdFromName(path.basename(file));
+      if (ext === '.nx' || ext === '.nup') {
+        // Their own header says what's inside (a file named "… update.nx" has no ID in its name).
+        const pkg = await readPackage(file);
+        if (pkg && !pkg.base) continue; // only an update or add-on
+        if (pkg) titleId = pkg.titleId;
+      } else if (!titleId && (ext === '.nsp' || ext === '.nsz')) titleId = await titleIdFromNsp(file);
       if (!isBaseTitle(titleId)) continue;
-      const id = titleId ? `switch-${titleId.toLowerCase()}` : hashId('switch', file);
+      const id = titleId ? `${platform}-${titleId.toLowerCase()}` : hashId(platform, file);
       if (seen.has(id)) continue; // the same game twice (an .nsp and an .xci, say)
       seen.add(id);
       games.push({
         id,
         name: nameFromRom(file) || path.basename(file),
         source: 'emulator',
-        platform: 'switch',
+        platform,
         emulator: info.name,
         titleId,
         path: file,
@@ -465,6 +544,8 @@ async function writeSwitchPlayers(userDir, players) {
 
 module.exports = {
   YUZU_FORKS,
+  PLATFORMS,
+  readPackage,
   detectSwitch,
   scanSwitch,
   romOfLaunch,

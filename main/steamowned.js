@@ -164,9 +164,20 @@ async function ownedNotInstalled(steamPath, installed, { exclude = () => false }
   const [pk, ai] = await Promise.all([fsp.readFile(path.join(cache, 'packageinfo.vdf')), fsp.readFile(path.join(cache, 'appinfo.vdf'))]);
   const owned = new Set();
   for (const [id, apps] of readPackages(pk)) if (id !== 0) for (const a of apps) owned.add(a);
-  // Several accounts on this PC share the cache: keep what the signed-in one knows.
+  // Several accounts on this PC share the cache: leave out what only another
+  // account knows. A game no account knows yet stays: Steam lists a game in an
+  // account's localconfig.vdf only once it's been used (or Steam closes), so
+  // one just added to the library (Rob Run) would otherwise never show.
   const accounts = await steamAccounts(steamPath);
   const mine = accounts.count > 1 && accounts.active ? await accountApps(steamPath, accounts.active) : null;
+  const others = new Set();
+  if (mine) {
+    const dirs = await fsp.readdir(path.join(steamPath, 'userdata')).catch(() => []);
+    for (const d of dirs) {
+      if (d === accounts.active || !/^\d+$/.test(d)) continue;
+      for (const id of (await accountApps(steamPath, d)) || []) if (!mine.has(id)) others.add(id);
+    }
+  }
   const out = [];
   eachApp(ai, owned, (id, a) => {
     const c = a.common || {};
@@ -174,7 +185,7 @@ async function ownedNotInstalled(steamPath, installed, { exclude = () => false }
     if ((type !== 'game' && type !== 'demo') || !c.name) return;
     if (c.oslist && !/windows/i.test(String(c.oslist))) return;
     if (installed.has(String(id)) || NOT_GAMES.test(c.name) || exclude(String(id), c.name)) return;
-    if (mine && !mine.has(String(id))) return;
+    if (others.has(String(id))) return;
     out.push({ appid: String(id), name: c.name, demo: type === 'demo' });
   });
   return out;

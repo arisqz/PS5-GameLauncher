@@ -147,7 +147,7 @@ async function changeArtwork(game, anchor) {
     title: 'Change Artwork',
     anchor,
     items: [
-      ...(state.settings.sgdbKey?.trim() ? [{ label: 'Choose from SteamGridDB…', icon: 'image', run: () => steamGridDBPicker(game) }] : []),
+      ...(state.settings.sgdbKey?.trim() || state.info?.sgdb ? [{ label: 'Choose from SteamGridDB…', icon: 'image', run: () => steamGridDBPicker(game) }] : []),
       {
         label: 'Find on Steam…',
         icon: 'search',

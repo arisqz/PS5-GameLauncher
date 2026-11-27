@@ -28,6 +28,7 @@ const SOURCES = [
   { value: 'xbox', label: 'Xbox' },
   { value: 'ubisoft', label: 'Ubisoft Connect' },
   { value: 'switch', label: 'Nintendo Switch' },
+  { value: 'switch2', label: 'Nintendo Switch 2' },
   { value: 'pc', label: 'Shortcuts & PC' },
 ];
 // Steam games the account owns but hasn't installed are in the collection too.
@@ -133,6 +134,7 @@ export class LibraryView {
         if (this.source === 'xbox') return src === 'XBOX';
         if (this.source === 'ubisoft') return src === 'UBISOFT';
         if (this.source === 'switch') return src === 'SWITCH';
+        if (this.source === 'switch2') return src === 'SWITCH 2';
         return src === 'PC';
       });
     }

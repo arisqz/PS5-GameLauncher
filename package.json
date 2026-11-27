@@ -1,7 +1,7 @@
 {
   "name": "ps5-game-launcher",
   "productName": "PS5 Game Launcher",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A controller-first game launcher for Windows with a PS5-style interface",
   "main": "main/main.js",
   "private": true,
@@ -17,7 +17,7 @@
   "build": {
     "appId": "com.ps5gamelauncher.app",
     "productName": "PS5 Game Launcher",
-    "copyright": "Copyright © 2026 Aris",
+    "copyright": "Copyright Â© 2026 Aris",
     "directories": {
       "output": "dist"
     },

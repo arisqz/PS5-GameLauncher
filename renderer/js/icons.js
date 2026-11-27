@@ -131,6 +131,11 @@ const P = {
   fGuide:
     '<path fill="currentColor" stroke="none" d="M4 4.6C4 3.7 4.7 3 5.6 3H11v16.4c-.9-.7-2-1-3.2-1H5.6c-.9 0-1.6-.7-1.6-1.6zM13 3h5.4c.9 0 1.6.7 1.6 1.6v12.2c0 .9-.7 1.6-1.6 1.6h-2.2c-1.2 0-2.3.3-3.2 1z"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  // The PS5's Explore: a ring open at the lower left, a rocket's head flying up
+  // and to the right out of it, two trails behind.
+  explore:
+    '<path d="M3.39 14.63A9 9 0 1 1 9.37 20.61"/><path d="M17.9 5.9 7 10.6l3.9 2.1 2.3 4.2zM14.35 9.45m-1.15 0a1.15 1.15 0 1 0 2.3 0a1.15 1.15 0 1 0-2.3 0" fill="currentColor" stroke="none" fill-rule="evenodd"/><path d="M4.2 17.6l4.4-4.3M6.6 20l3.1-3.1"/>',
+  drive: '<rect x="2.5" y="13" width="19" height="7" rx="1.8"/><path d="M5.5 5.6A2 2 0 0 1 7.3 4.5h9.4a2 2 0 0 1 1.8 1.1L21.5 13h-19z"/><path d="M17.5 16.5h.01M14.5 16.5h.01"/>',
   fAbout:
     '<mask id="clm-info"><rect width="24" height="24" fill="#fff"/><circle cx="12" cy="7.6" r="1.35" fill="#000"/><rect x="10.85" y="10.3" width="2.3" height="7" rx="1.1" fill="#000"/></mask><circle cx="12" cy="12" r="9.6" fill="currentColor" stroke="none" mask="url(#clm-info)"/>',
 };

@@ -4,6 +4,7 @@
 // fading it out reveals the home screen's hero underneath.
 
 import { h } from '../util.js';
+import { lightBackground } from './lightbg.js';
 
 const COLORS = [
   [255, 168, 72], // gold
@@ -42,15 +43,16 @@ function gauss() {
 }
 
 export class BootStage {
-  constructor() {
+  /** rays: the Settings light (ui/lightbg.js) instead of the spotlight, as on the PS5's setup screens. */
+  constructor({ rays = false } = {}) {
     this.canvas = h('canvas', { class: 'bs-particles' });
+    this.light = rays ? lightBackground() : null;
     this.el = h(
       'div',
-      { class: 'boot-stage' },
-      h('div', { class: 'bs-base' }),
-      h('div', { class: 'bs-beam' }, h('div', { class: 'bs-shafts' })),
-      h('div', { class: 'bs-source' }),
-      h('div', { class: 'bs-floor' }),
+      { class: `boot-stage${rays ? ' with-rays' : ''}` },
+      ...(this.light
+        ? [this.light.el]
+        : [h('div', { class: 'bs-base' }), h('div', { class: 'bs-beam' }, h('div', { class: 'bs-shafts' })), h('div', { class: 'bs-source' }), h('div', { class: 'bs-floor' })]),
       this.canvas,
       h('div', { class: 'bs-black' })
     );
@@ -62,9 +64,11 @@ export class BootStage {
     this.onResize = () => this.resize();
   }
 
-  mount() {
-    const app = document.getElementById('app');
-    app.insertBefore(this.el, document.getElementById('views'));
+  /** parent: where it goes (default: behind the views). */
+  mount(parent = null) {
+    if (parent) parent.append(this.el);
+    else document.getElementById('app').insertBefore(this.el, document.getElementById('views'));
+    if (this.light) this.light.start();
     window.addEventListener('resize', this.onResize);
     this.resize();
     this.last = performance.now();
@@ -170,6 +174,7 @@ export class BootStage {
   }
 
   destroy() {
+    if (this.light) this.light.stop();
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.onResize);
     this.el.remove();

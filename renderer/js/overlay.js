@@ -7,6 +7,7 @@ import { initDualsense } from './dualsense.js';
 import { setHandler, setGamepadPolling, externalAction } from './input.js';
 import { configureSound, unlockAudio, setSoundPacks, resetAudio } from './sound.js';
 import { topOverlay } from './ui/overlay.js';
+import { watchFocusRings } from './ui/focusfx.js';
 import { QuickMenu } from './views/quickmenu.js';
 import { loadDiscord } from './discord.js';
 import { loadFriends } from './steamfriends.js';
@@ -108,6 +109,7 @@ async function main() {
   api.on('passthrough:state', setPassthrough);
   api.passthroughStatus().then(setPassthrough).catch(() => {});
   initDualsense();
+  watchFocusRings();
   // In-game sleep: close the audio output until the next menu or notification.
   on('sleep', (asleep) => asleep && resetAudio());
   // The window was hidden without the page closing its menu (it opened the

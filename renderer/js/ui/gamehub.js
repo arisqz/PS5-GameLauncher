@@ -14,6 +14,73 @@ import { sliderHtml, setSlider, dragSlider } from './slider.js';
 import { sys, mediaCommand, mediaPosition, seekLocal, selectSession, appName, fmtTime } from '../system.js';
 import { t, language } from '../i18n.js';
 import { ACTIVE, statusText, progressOf, fmtLeft, fmtSpeed, startUpdate, startInstall, pulsing } from './downloads.js';
+import { ExploreHub } from './explore.js';
+
+/*
+ * Game logos are decoded before they go on screen. A picture the page shows
+ * for the first time is otherwise decoded while the frame that shows it waits
+ * (traced: a 1280 × 720 logo held a frame for 300 ms), which is a hitch when
+ * moving through the games fast. Decoded ones are remembered; the next games'
+ * logos are decoded ahead while nothing else happens (warmLogos).
+ */
+// Decoded into an ImageBitmap at the size it's shown (off the main thread) and
+// drawn into a canvas: an <img>, even decoded beforehand, is decoded again by
+// the compositor the first time it's drawn, and the frame waits for that.
+const decodedLogos = new Map(); // url → Promise<ImageBitmap | null>
+
+function decodeLogo(url) {
+  let p = decodedLogos.get(url);
+  if (!p) {
+    const img = new Image();
+    img.src = url;
+    p = img
+      .decode()
+      .then(() => {
+        // Never larger than the logo's box (64 × 22rem) at up to twice its pixels.
+        const k = Math.min(1, 1000 / img.naturalWidth, 360 / img.naturalHeight);
+        return createImageBitmap(img, { resizeWidth: Math.max(1, Math.round(img.naturalWidth * k)), resizeHeight: Math.max(1, Math.round(img.naturalHeight * k)), resizeQuality: 'high' });
+      })
+      .catch(() => null);
+    decodedLogos.set(url, p);
+    // A few dozen at most (about 1.4 MB each).
+    if (decodedLogos.size > 40) {
+      const old = decodedLogos.keys().next().value;
+      decodedLogos.get(old).then((b) => b && b.close());
+      decodedLogos.delete(old);
+    }
+  }
+  return p;
+}
+
+/** The logo as an element: shown once decoded (the name in its place if it can't be). */
+function logoImage(url, name) {
+  const wrap = h('div', { class: 'hub-logo-slot' });
+  decodeLogo(url).then((bmp) => {
+    if (!wrap.parentNode) return;
+    let el;
+    try {
+      el = h('canvas', { class: 'hub-logo', title: name });
+      el.width = bmp.width;
+      el.height = bmp.height;
+      el.getContext('2d').drawImage(bmp, 0, 0);
+    } catch {
+      el = h('div', { class: 'hub-title', text: name });
+    }
+    wrap.replaceWith(el);
+  });
+  return wrap;
+}
+
+/** Decode these logos in idle time, so selecting their games shows them at once. */
+export function warmLogos(urls) {
+  const todo = urls.filter((u) => u && !decodedLogos.has(u));
+  const next = () => {
+    const u = todo.shift();
+    if (!u) return;
+    decodeLogo(u).finally(() => (window.requestIdleCallback || setTimeout)(next));
+  };
+  (window.requestIdleCallback || setTimeout)(next);
+}
 
 export class HubPanel {
   /**
@@ -25,7 +92,16 @@ export class HubPanel {
     this.main = h('div', { class: 'hub-main' });
     this.cardsTrack = h('div', { class: 'hub-cards-track' });
     this.cards = h('div', { class: 'hub-cards' }, this.cardsTrack);
-    this.el = h('div', { class: 'hub' }, this.main, this.cards);
+    // Explore's widgets (home only: hosts that can focus them pass onWidgetFocus).
+    this.explore = host.onWidgetFocus
+      ? new ExploreHub({
+          openView: (name, params) => host.openView(name, params),
+          focusGame: (id) => host.focusGame(id),
+          openQuick: (id, tab) => host.openQuick(id, tab),
+          onFocusRequest: (i, how) => host.onWidgetFocus(i, how),
+        })
+      : null;
+    this.el = h('div', { class: 'hub' }, this.main, this.cards, this.explore ? this.explore.el : null);
     this.actions = new FocusList([]);
     this.cardNav = new FocusList([], { onChange: (el) => this.scrollCards(el) });
     this.actionDefs = [];
@@ -67,21 +143,25 @@ export class HubPanel {
     el.classList.toggle('error', d.status === 'error');
   }
 
-  /** item: { type: 'game'|'library'|'store'|'add', game? } */
+  /** item: { type: 'game'|'library'|'explore'|'add', game? } */
   setItem(item, { animate = true } = {}) {
     const sameItem = !!(this.item && item && this.item.key && this.item.key === item.key);
     this.item = item;
     const keepAction = this.actions.index;
     this.main.innerHTML = '';
     this.cardsTrack.innerHTML = '';
-    if (!item) return;
+    if (!item) {
+      this.el.classList.remove('explore-on');
+      return;
+    }
     if (item.type === 'game') this.buildGame(item.game);
     else if (item.type === 'library') this.buildLibrary();
-    else if (item.type === 'store') this.buildStore();
+    else if (item.type === 'explore') this.buildExplore(animate);
     else if (item.type === 'media-empty') this.buildMediaEmpty();
     else if (item.type === 'nowplaying') this.buildNowPlaying();
     else this.buildWelcome();
 
+    this.el.classList.toggle('explore-on', item.type === 'explore');
     if (animate) {
       this.main.classList.remove('enter');
       void this.main.offsetWidth;
@@ -97,9 +177,7 @@ export class HubPanel {
     const logo = artUrl(g, 'logo');
     const desc = (g.meta && g.meta.description) || '';
     const running = isRunning(g);
-    const titleEl = logo
-      ? h('img', { class: 'hub-logo', src: logo, alt: g.name, onerror: (e) => e.target.replaceWith(h('div', { class: 'hub-title', text: g.name })) })
-      : h('div', { class: 'hub-title', text: g.name });
+    const titleEl = logo ? logoImage(logo, g.name) : h('div', { class: 'hub-title', text: g.name });
     const pt = playtimeOf(g);
     this.main.append(
       h('div', { class: 'hub-logo-wrap' }, titleEl),
@@ -113,7 +191,7 @@ export class HubPanel {
         pt ? h('div', { class: 'pill', html: `${icon('clock')}<span>${fmtPlaytime(pt)}</span>` }) : null
       )
     );
-    // A Steam update waiting: "Update" instead of "Play Game" (like the PS5).
+    // A Steam update waiting: "Update" instead of "Play" (like the PS5).
     // While it downloads, the button opens Downloads and the strip below shows how far it is.
     const dl = downloadFor(g);
     this.dlMode = dl ? (ACTIVE.has(dl.status) ? 'active' : 'update') : isInstalled(g) ? 'play' : 'download';
@@ -125,9 +203,9 @@ export class HubPanel {
           ? { label: dl.status === 'paused' ? 'Resume' : 'View Download', icon: 'download', primary: true, run: () => (dl.status === 'paused' ? startUpdate(findGame(g.id) || g) : this.host.openView('downloads')) }
           : this.dlMode === 'download'
             ? { label: 'Download', icon: 'download', primary: true, run: () => startInstall(findGame(g.id) || g) }
-            : { label: 'Play Game', icon: 'play', primary: true, run: (el) => launchGame(findGame(g.id) || g, { from: el }) };
+            : { label: 'Play', icon: 'play', primary: true, run: (el) => launchGame(findGame(g.id) || g, { from: el }) };
     this.actionDefs = [primary, { icon: 'more', round: true, label: 'Options', run: (el) => gameOptions(findGame(g.id) || g, el) }];
-    if (this.dlMode === 'active' && dl.status === 'paused' && isInstalled(g)) this.actionDefs.splice(1, 0, { label: 'Play Game', icon: 'play', run: (el) => launchGame(findGame(g.id) || g, { from: el }) });
+    if (this.dlMode === 'active' && dl.status === 'paused' && isInstalled(g)) this.actionDefs.splice(1, 0, { label: 'Play', icon: 'play', run: (el) => launchGame(findGame(g.id) || g, { from: el }) });
 
     const shots = g.screenshots || [];
     const m = g.meta || {};
@@ -221,16 +299,17 @@ export class HubPanel {
     );
   }
 
-  buildStore() {
-    this.main.append(
-      h('div', { class: 'hub-logo-wrap' }, h('div', { class: 'hub-title big', text: t('Steam Store') })),
-      h('div', { class: 'hub-desc', text: t('Browse new releases, deals and your wishlist in the Steam client.') })
-    );
-    this.actionDefs = [
-      { label: 'Open Store', icon: 'bag', primary: true, run: () => api.openExternal('steam://store') },
-      { label: 'Wishlist', icon: 'star', run: () => api.openExternal('steam://openurl/https://store.steampowered.com/wishlist/') },
-    ];
+  /** Explore: no buttons or cards, its widgets instead (ui/explore.js). */
+  buildExplore(animate) {
+    this.actionDefs = [];
     this.cardDefs = [];
+    if (!this.explore) return;
+    this.explore.refresh();
+    if (animate) {
+      this.explore.el.classList.remove('enter');
+      void this.explore.el.offsetWidth;
+      this.explore.el.classList.add('enter');
+    }
   }
 
   buildNowPlaying() {

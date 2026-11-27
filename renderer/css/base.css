@@ -268,6 +268,18 @@ html.windowed .boot {
   opacity: 1;
 }
 
+.hero-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+}
+
+#hero-bg .hero-layer.blur-art .hero-img {
+  object-position: center;
+}
+
 .hero-motion .hero-layer.drifting {
   animation: heroDrift 18s var(--ease-out) both;
 }
@@ -323,32 +335,26 @@ html.windowed .boot {
 /* Focus ring + glint (PS5 style)                                      */
 /* ------------------------------------------------------------------ */
 /*
- * .fx elements get a ring drawn around them while focused. As on the PS5
- * (measured from a video of a focused Settings row): the ring is cream on one
- * side, grey-lavender along the middle and nearly gone on the far side, and
- * that light swings slowly back and forth (the far side tilts between the
- * top and bottom corners about every 7 s), so the bottom edge is warm, almost
- * yellow, some of the time. After ~1.5 s of focus a broad, soft band of light
- * sweeps across the element left to right in under a second, every 5 s.
+ * .fx elements get a ring drawn around them while focused, as on the PS5
+ * (measured from a video of a focused Settings row, frame by frame):
+ *  - The ring is thin and never evenly lit. A light travels around it, so one
+ *    stretch is cream and strong while another is lavender and nearly gone,
+ *    and that changes over seconds (ui/focusfx.js plays the measured loop).
+ *  - Nothing fills the element. Every 5 s a broad, soft band of light crosses
+ *    it from the top-left corner to the bottom-right one in 1.58 s.
  * .fx-in puts the ring on the element's edge (list rows) instead of outside.
+ * .fx-round (set by ui/focusfx.js on round elements) wraps the same light
+ * around a circle.
  */
-@property --ring-a {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
 .fx {
   position: relative;
   --fx-r: 1.2rem;
   --fx-gap: 0.5rem;
   --fx-w: 0.28rem;
   --glint: 0.3;
-  --glint-size: 300%;
-  /* The ring's light (colour and how much of what's behind shows through). */
-  --ring-bright: rgba(255, 241, 228, 1);
-  --ring-mid: rgba(236, 234, 248, 0.82);
-  --ring-dark: rgba(236, 234, 248, 0.42);
+  --glint-rgb: 255, 255, 255;
+  /* Under the travelling light, so a ring around artwork never fades out. */
+  --ring-base: rgba(236, 234, 248, 0.35);
 }
 
 .fx::before {
@@ -357,25 +363,50 @@ html.windowed .boot {
   inset: calc(-1 * (var(--fx-gap) + var(--fx-w)));
   border-radius: calc(var(--fx-r) + var(--fx-gap) + var(--fx-w));
   padding: var(--fx-w);
-  /* Light from the left (270deg), dark towards the right (90deg). */
-  background: conic-gradient(
-    from var(--ring-a),
-    var(--ring-mid) 0deg,
-    var(--ring-dark) 70deg,
-    var(--ring-dark) 110deg,
-    var(--ring-mid) 180deg,
-    var(--ring-bright) 245deg,
-    var(--ring-bright) 295deg,
-    var(--ring-mid) 360deg
-  );
+  /* The ends (with the corners' arcs) top to bottom, then the top and bottom
+     edges between them left to right. */
+  --cap: calc(var(--fx-r) + var(--fx-gap) + var(--fx-w));
+  background:
+    linear-gradient(180deg, var(--r0), var(--r14) 30%, var(--r15) 70%, var(--r8)) no-repeat 0 0 / var(--cap) 100%,
+    linear-gradient(180deg, var(--r5), var(--r6) 30%, var(--r7) 70%, var(--r13)) no-repeat 100% 0 / var(--cap) 100%,
+    linear-gradient(90deg, var(--r0) 8.3%, var(--r1) 25%, var(--r2) 41.7%, var(--r3) 58.3%, var(--r4) 75%, var(--r5) 91.7%) no-repeat var(--cap) 0 / calc(100% - 2 * var(--cap)) 50%,
+    linear-gradient(90deg, var(--r8) 8.3%, var(--r9) 25%, var(--r10) 41.7%, var(--r11) 58.3%, var(--r12) 75%, var(--r13) 91.7%) no-repeat var(--cap) 100% / calc(100% - 2 * var(--cap)) 50%,
+    linear-gradient(var(--ring-base), var(--ring-base));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0;
   transform: scale(1.05);
-  transition: opacity 0.2s var(--ease), transform 0.4s var(--ease-out);
+  /* Gone at once when the focus moves on (as on the PS5); see the lit state for coming in. */
+  transition: opacity 0s, transform 0.4s var(--ease-out);
   pointer-events: none;
   z-index: 3;
+}
+
+/* A circle: the same 16 colours by angle (top centre is 0deg). */
+.fx.fx-round::before {
+  background:
+    conic-gradient(
+      color-mix(in srgb, var(--r2), var(--r3)) 0deg,
+      var(--r3) 13.5deg,
+      var(--r4) 40.5deg,
+      var(--r5) 67.5deg,
+      var(--r6) 83deg,
+      var(--r7) 97deg,
+      var(--r13) 112.5deg,
+      var(--r12) 139.5deg,
+      var(--r11) 166.5deg,
+      var(--r10) 193.5deg,
+      var(--r9) 220.5deg,
+      var(--r8) 247.5deg,
+      var(--r15) 263deg,
+      var(--r14) 277deg,
+      var(--r0) 292.5deg,
+      var(--r1) 319.5deg,
+      var(--r2) 346.5deg,
+      color-mix(in srgb, var(--r2), var(--r3)) 360deg
+    ),
+    linear-gradient(var(--ring-base), var(--ring-base));
 }
 
 .fx::after {
@@ -383,47 +414,73 @@ html.windowed .boot {
   position: absolute;
   inset: 0;
   border-radius: var(--fx-r);
-  /* A band wider than the element, nearly upright, soft all the way across. */
+  /* A soft band, its brightest line parallel to the line from the top-right
+     corner to the bottom-left one, crossing from the top-left corner to the
+     bottom-right one (as measured on the PS5: the bottom edge lights up as much
+     later than the top as the right end does than the left). Drawn on the
+     element itself, the band's middle at --gx along its diagonal (0% the
+     top-left corner, 100% the bottom-right), moved by ui/focusfx.js from
+     -87% to 187%: no image edges that could cut through the light. 1.74
+     diagonals wide, with the PS5's profile, measured. */
+  --gx: var(--glint-x, -87%);
   background: linear-gradient(
-      100deg,
-      rgba(255, 255, 255, 0) 10%,
-      rgba(255, 255, 255, calc(var(--glint) * 0.6)) 30%,
-      rgba(255, 255, 255, var(--glint)) 50%,
-      rgba(255, 255, 255, calc(var(--glint) * 0.6)) 70%,
-      rgba(255, 255, 255, 0) 90%
-    )
-    no-repeat;
-  background-size: var(--glint-size) 100%;
-  background-position: 115% 0;
+    to bottom right,
+    rgba(var(--glint-rgb), 0) calc(var(--gx) - 87%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.12)) calc(var(--gx) - 78.3%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.26)) calc(var(--gx) - 69.6%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.42)) calc(var(--gx) - 60.9%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.56)) calc(var(--gx) - 52.2%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.68)) calc(var(--gx) - 43.5%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.79)) calc(var(--gx) - 34.8%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.88)) calc(var(--gx) - 26.1%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.94)) calc(var(--gx) - 17.4%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.98)) calc(var(--gx) - 8.7%),
+    rgba(var(--glint-rgb), var(--glint)) var(--gx),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.98)) calc(var(--gx) + 8.7%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.94)) calc(var(--gx) + 17.4%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.88)) calc(var(--gx) + 26.1%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.79)) calc(var(--gx) + 34.8%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.68)) calc(var(--gx) + 43.5%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.56)) calc(var(--gx) + 52.2%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.42)) calc(var(--gx) + 60.9%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.26)) calc(var(--gx) + 69.6%),
+    rgba(var(--glint-rgb), calc(var(--glint) * 0.12)) calc(var(--gx) + 78.3%),
+    rgba(var(--glint-rgb), 0) calc(var(--gx) + 87%)
+  );
+  /* Once, never tiled: the arrival flash (ui/focusfx.js) puts its smaller image here. */
+  background-repeat: no-repeat;
   opacity: 0;
   pointer-events: none;
   z-index: 2;
 }
 
+/* Lit, the ring and the glint get layers of their own: they change many times a
+   second, and alone they repaint without what's under them (a tile's artwork). */
 .fx.focused::before,
 .focused > .fx::before,
 .fx.sel:not(.tile)::before {
   opacity: 1;
   transform: none;
-  /* 30 steps a second: the soft light looks the same, and the ring is
-     repainted half as often (it runs whenever the launcher is in front). */
-  animation: ringSwing 3.5s steps(105) infinite alternate;
+  will-change: transform;
+  transition: opacity 0.2s var(--ease), transform 0.4s var(--ease-out);
 }
 
+/* The glint, moved by ui/focusfx.js. */
 .fx.focused::after,
 .focused > .fx::after,
 .fx.sel:not(.tile)::after {
-  animation: glint 5s linear 1.5s infinite;
+  opacity: var(--glint-o, 0);
+  will-change: transform;
 }
 
-/* List rows: the PS5's measured strength (the band lifts a dark row by ~13% white). */
+/* List rows, exactly as measured: only the travelling light (no base under
+   it), and a faintly blue band that lifts a dark row by about 13%, kept just
+   inside the ring. */
 .fx-in {
   --fx-gap: 0rem;
-  --fx-w: 0.2rem;
   --glint: 0.13;
-  --ring-bright: rgba(255, 241, 228, 0.75);
-  --ring-mid: rgba(236, 234, 248, 0.55);
-  --ring-dark: rgba(236, 234, 248, 0.25);
+  --glint-rgb: 205, 228, 255;
+  --ring-base: transparent;
 }
 
 .fx-in::before {
@@ -432,18 +489,9 @@ html.windowed .boot {
   transform: none;
 }
 
-/* Ease in and out at each end of the swing (alternate runs it back). */
-@keyframes ringSwing {
-  0% { --ring-a: -25deg; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  100% { --ring-a: 25deg; }
-}
-
-/* The band slides in from the left and out to the right in 0.95 s, eased;
-   its soft edges do the fading. */
-@keyframes glint {
-  0% { opacity: 1; background-position: 115% 0; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
-  19% { opacity: 1; background-position: -15% 0; }
-  19.01%, 100% { opacity: 0; background-position: -15% 0; }
+.fx-in::after {
+  inset: calc(var(--fx-w) + 0.15rem);
+  border-radius: calc(var(--fx-r) - var(--fx-w) - 0.15rem);
 }
 
 .reduce-motion .fx::after {
@@ -842,14 +890,16 @@ html.font-sst {
   --font: "SST UI", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
 }
 
-/* The PS5's emphasis: the selected Games / Media tab is medium and the hub's
-   buttons bold; a game's name and the hub's card headings are light like the rest. */
-html.font-sst .tb-tab.active {
+/* The PS5's emphasis: the selected Games / Media tab and the hub's buttons are
+   medium; a game's name and the hub's card headings are light like the rest.
+   Play fills its button as on the PS5 (text 0.39 of its height, measured). */
+html.font-sst .tb-tab.active,
+html.font-sst .hub-btn {
   font-weight: 600;
 }
 
-html.font-sst .hub-btn {
-  font-weight: 700;
+html.font-sst .hub-btn.primary {
+  font-size: 2.9rem;
 }
 
 html.font-sst .hub-title,

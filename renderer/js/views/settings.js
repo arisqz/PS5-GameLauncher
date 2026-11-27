@@ -3,15 +3,14 @@
 
 import { h, escapeHtml, clamp, replayClass } from '../util.js';
 import { icon } from '../icons.js';
-import { state, on, setSetting, api, refreshInfo } from '../state.js';
+import { state, on, api, refreshInfo } from '../state.js';
 import { sfx } from '../sound.js';
 import { mouseActive } from '../input.js';
 import { FocusList } from '../ui/overlay.js';
-import { optionsMenu, textDialog, sliderDialog } from '../ui/dialogs.js';
-import { renderHints } from '../ui/glyphs.js';
 import { buildSchema } from './settingsSchema.js';
-import { sliderHtml } from '../ui/slider.js';
+import { rowHtml, activateRow } from '../ui/rows.js';
 import { loadVolume, loadBrightness, loadNightLight, loadHdr } from '../system.js';
+import { lightBackground } from '../ui/lightbg.js';
 import { t } from '../i18n.js';
 
 export class SettingsView {
@@ -19,7 +18,7 @@ export class SettingsView {
     this.router = router;
     this.name = 'settings';
     this.usesHero = false;
-    this.usesCanvas = true; // the animated theme background shows through
+    this.usesCanvas = false; // its own background covers the animated theme one
     this.mode = 'root';
     this.cat = null;
     this.section = 0;
@@ -28,6 +27,7 @@ export class SettingsView {
     this.build();
     const rerender = () => this.active && this.mode === 'page' && this.renderList(true);
     on('settings', rerender);
+    on('settings', () => this.active && this.light.start()); // Reduce Motion stills it
     on('games', rerender);
     on('gamepad', rerender);
     on('volume', () => this.active && this.cat && this.cat.id === 'sound' && rerender());
@@ -97,12 +97,9 @@ export class SettingsView {
     );
     this.page = h('div', { class: 'set-page' }, this.titleEl, this.nav, this.listWrap);
 
-    this.hints = h('div', { class: 'set-hints' });
-    renderHints(this.hints, [
-      ['confirm', 'Select'],
-      ['back', 'Back'],
-    ]);
-    this.el = h('section', { class: 'view settings-view' }, h('div', { class: 'set-bg' }), this.root, this.page, this.hints);
+    // No button hints in the corner: the PS5's Settings has none.
+    this.light = lightBackground();
+    this.el = h('section', { class: 'view settings-view' }, this.light.el, this.root, this.page);
   }
 
   /* ---------------------------------------------------------------- */
@@ -137,6 +134,7 @@ export class SettingsView {
     }
   }
 
+  /** i: the category's index in the root list. */
   openCategory(i, { sound = true, section = 0 } = {}) {
     if (this.mode === 'page') this.leaveSection();
     this.cat = this.schema[i];
@@ -237,7 +235,7 @@ export class SettingsView {
         this.leaveSection();
         this.section = i;
         this.enterSection();
-        this.renderList();
+        this.renderList(false, { swap: true });
       },
     });
     this.applyZone();
@@ -247,7 +245,8 @@ export class SettingsView {
     return this.cat.sections[this.section].items().filter(Boolean);
   }
 
-  renderList(keep = false) {
+  /** swap: another tab of the same page (its rows come in a moment later, as on the PS5). */
+  renderList(keep = false, { swap = false } = {}) {
     const prev = keep && this.listNav ? this.listNav.index : 0;
     const defs = this.items();
     // Skip identical re-renders so the focused row keeps its animations.
@@ -269,6 +268,9 @@ export class SettingsView {
         el = h('div', { class: 'set-header', html: `${escapeHtml(t(d.label))}${d.busy ? '<span class="spinner sm"></span>' : ''}` });
       } else if (d.type === 'note') {
         el = h('div', { class: 'set-note', text: t(d.label) });
+      } else if (d.type === 'block') {
+        // Something to look at, not a row to choose (Storage's summary).
+        el = h('div', { class: `set-block ${d.cls || ''}`, html: d.html() });
       } else {
         el =
           d.type === 'step'
@@ -295,9 +297,9 @@ export class SettingsView {
       this.list.append(el);
     }
     if (!keep) {
-      this.list.classList.remove('enter');
+      this.list.classList.remove('enter', 'swap');
       void this.list.offsetWidth;
-      this.list.classList.add('enter');
+      this.list.classList.add(swap ? 'swap' : 'enter');
     }
     let start = clamp(prev, 0, Math.max(0, focusables.length - 1));
     while (focusables[start] && focusables[start].classList.contains('disabled') && start < focusables.length - 1) start++;
@@ -321,6 +323,9 @@ export class SettingsView {
         if (el.innerHTML !== html) el.innerHTML = html;
       } else if (d.type === 'note') {
         if (el.textContent !== t(d.label)) el.textContent = t(d.label);
+      } else if (d.type === 'block') {
+        const html = d.html();
+        if (el._html !== html) el.innerHTML = el._html = html;
       } else {
         if (d.type !== 'step') {
           const html = this.itemHtml(d);
@@ -337,33 +342,7 @@ export class SettingsView {
   }
 
   itemHtml(d) {
-    const s = state.settings;
-    const label = `<span class="si-label">${d.icon ? icon(d.icon) : ''}<span>${escapeHtml(t(d.label))}</span></span>`;
-    switch (d.type) {
-      case 'toggle':
-        return `${label}<span class="switch${(d.get ? d.get() : s[d.key]) ? ' on' : ''}"><i></i></span>`;
-      case 'choice': {
-        const cur = d.get ? d.get() : s[d.key];
-        const opt = d.options.find((o) => String(o.value) === String(cur));
-        return `${label}<span class="si-value">${escapeHtml(opt ? t(opt.label) : String(cur ?? ''))}</span>`;
-      }
-      case 'range': {
-        const v = (d.get ? d.get() : s[d.key]) ?? 0;
-        return `${label}<span class="si-value si-range">${sliderHtml(((v - (d.min || 0)) / ((d.max || 100) - (d.min || 0))) * 100, 'thin')}<span class="si-num">${v}${d.unit || ''}</span></span>`;
-      }
-      case 'text': {
-        const v = (d.get ? d.get() : s[d.key]) || '';
-        const shown = v ? (d.secret ? '•'.repeat(Math.min(12, v.length)) : v) : d.placeholder ? t('Not set') : '';
-        return `${label}<span class="si-value${v ? '' : ' dim'}">${escapeHtml(shown)}</span>`;
-      }
-      case 'action':
-        return `${label}${d.value !== undefined ? `<span class="si-value dim ${d.valueClass || ''}"><bdi>${escapeHtml(t(d.value))}</bdi></span>` : ''}<span class="si-chev">${icon('chevronRight')}</span>`;
-      case 'info':
-        return `${label}<span class="si-value dim">${escapeHtml(t(d.value ?? ''))}</span>`;
-      case 'drive':
-        return d.html();
-    }
-    return label;
+    return rowHtml(d);
   }
 
   scrollList(instant = false) {
@@ -404,64 +383,8 @@ export class SettingsView {
     this.el.classList.toggle('nav-focus', this.zone === 'nav');
   }
 
-  async activate(d, el) {
-    if (d.disabled) return;
-    const s = state.settings;
-    switch (d.type) {
-      case 'toggle':
-        sfx.toggle(!(d.get ? d.get() : s[d.key]));
-        if (d.set) await d.set(!d.get());
-        else await setSetting(d.key, !s[d.key]);
-        this.renderList(true);
-        break;
-      case 'choice': {
-        sfx.select();
-        // get/set: a value that isn't a setting of its own (one encoder's settings, say).
-        const cur = d.get ? d.get() : s[d.key];
-        const choice = await optionsMenu({
-          title: t(d.label),
-          anchor: el,
-          side: 'below-right',
-          index: Math.max(0, d.options.findIndex((o) => String(o.value) === String(cur))),
-          items: d.options.map((o) => ({ label: t(o.label), hint: o.hint, value: o.value, checked: String(o.value) === String(cur) })),
-        });
-        if (choice && String(choice.value) !== String(cur)) {
-          if (d.set) await d.set(choice.value);
-          else await setSetting(d.key, choice.value);
-          this.renderList(true);
-        }
-        break;
-      }
-      case 'range': {
-        sfx.select();
-        const get = d.get || (() => s[d.key]);
-        const set = d.set || ((nv) => setSetting(d.key, nv));
-        const orig = get() ?? 0;
-        const v = await sliderDialog({ title: t(d.label), value: orig, min: d.min, max: d.max, step: d.step, unit: d.unit, onChange: (nv) => set(nv) });
-        if (v === null) await set(orig);
-        this.renderList(true);
-        break;
-      }
-      case 'text': {
-        sfx.select();
-        const initial = d.get ? (d.secret ? '' : d.get() || '') : s[d.key] || '';
-        const v = await textDialog({ title: t(d.label), value: initial, secret: d.secret, placeholder: d.placeholder || '' });
-        if (v !== null) {
-          if (d.set) await d.set(v.trim());
-          else await setSetting(d.key, v.trim());
-        }
-        this.renderList(true);
-        break;
-      }
-      case 'action':
-      case 'drive':
-        sfx.select();
-        await d.run(el);
-        this.active && this.renderList(true);
-        break;
-      default:
-        sfx.bump();
-    }
+  activate(d, el) {
+    return activateRow(d, el, () => this.active && this.mode === 'page' && this.renderList(true));
   }
 
   /* ---------------------------------------------------------------- */
@@ -535,6 +458,7 @@ export class SettingsView {
 
   show(params = {}, dir) {
     this.active = true;
+    this.light.start();
     if (dir === 'forward' && !params.category) this.mode = 'root';
     if (params.category) {
       const i = this.schema.findIndex((c) => c.id === params.category);
@@ -557,6 +481,8 @@ export class SettingsView {
 
   hide() {
     this.active = false;
+    // Still drawn while the view fades out, then no more.
+    setTimeout(() => !this.active && this.light.stop(), 400);
     if (this.mode === 'page') this.leaveSection();
   }
 }

@@ -1,5 +1,13 @@
 // Interactive SteamGridDB browsing. Credentials stay in the main process.
+// The key is the user's own (Settings › Library › Artwork, or picked up by the
+// first-time setup from SteamGridDB's API page).
+
 const API = 'https://www.steamgriddb.com/api/v2';
+
+/** The user's key ('' when there is none). */
+function keyFor(userKey) {
+  return (typeof userKey === 'string' && userKey.trim()) || '';
+}
 const TYPES = { grid: 'grids', capsule: 'grids', hero: 'heroes', logo: 'logos' };
 
 function assetUrl(value) {
@@ -21,7 +29,8 @@ function typeFor(kind) {
 }
 
 async function request(key, endpoint) {
-  if (typeof key !== 'string' || !key.trim()) throw new Error('Add a SteamGridDB API key in Settings first.');
+  key = keyFor(key);
+  if (!key) throw new Error('Add a SteamGridDB API key in Settings first.');
   let response;
   try {
     response = await fetch(API + endpoint, {
@@ -62,4 +71,4 @@ async function artwork(key, kind, id) {
   return url;
 }
 
-module.exports = { search, list, artwork };
+module.exports = { search, list, artwork, keyFor };

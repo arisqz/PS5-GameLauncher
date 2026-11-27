@@ -137,17 +137,22 @@ class Library {
       this.progress({ active: true, label: `Scanning ${path.basename(folder) || folder}…`, current: 0, total: 0 });
       found.push(...(await scanner.scanFolder(folder)));
     }
-    const sw = s.emulators && s.emulators.switch;
-    if (sw && sw.exe) {
-      this.progress({ active: true, label: 'Scanning Nintendo Switch games…', current: 0, total: 0 });
+    // Each console's emulator (Switch, Switch 2), with its own game folders.
+    for (const platform of emulators.PLATFORMS) {
+      const sw = s.emulators && s.emulators[platform];
+      if (!sw || !sw.exe) {
+        delete this.emulatorInfo[platform];
+        continue;
+      }
+      this.progress({ active: true, label: platform === 'switch2' ? 'Scanning Nintendo Switch 2 games…' : 'Scanning Nintendo Switch games…', current: 0, total: 0 });
       try {
-        const r = await emulators.scanSwitch(sw);
-        this.emulatorInfo.switch = r.info ? { ...r.info, count: r.games.length } : null;
+        const r = await emulators.scanSwitch(sw, platform);
+        this.emulatorInfo[platform] = r.info ? { ...r.info, count: r.games.length } : null;
         found.push(...r.games);
       } catch (err) {
-        console.warn('[scan] switch failed', err);
+        console.warn(`[scan] ${platform} failed`, err);
       }
-    } else delete this.emulatorInfo.switch;
+    }
 
     const added = this.merge(found);
     this.store.saveNow();
@@ -350,18 +355,19 @@ class Library {
     for (const k of ART_KEYS) if (custom[k] && g.art && g.art[k]) art[k] = g.art[k];
 
     const steam = g.steamAppId ? meta.steamCandidates(g.steamAppId, item) : null;
-    // A Switch game: Nintendo's own name, box art, square and wide images.
+    // A Switch (or Switch 2) game: Nintendo's own name, box art, square and wide images.
     let nin = null;
-    if (g.platform === 'switch') {
+    if (g.platform === 'switch' || g.platform === 'switch2') {
       try {
         nin = await emulators.nintendoLookup(g, meta.scoreMatch);
       } catch {}
     }
     const ninArt = nin ? emulators.nintendoCandidates(nin) : null;
     let sg = null;
-    if (s.sgdbKey) {
+    const sgKey = sgdb.keyFor(s.sgdbKey);
+    if (sgKey) {
       try {
-        sg = await meta.sgdbCandidates(s.sgdbKey, g);
+        sg = await meta.sgdbCandidates(sgKey, g);
       } catch {}
     }
     const preferSg = s.artSource === 'sgdb';

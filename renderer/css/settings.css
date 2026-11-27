@@ -1,101 +1,14 @@
-/* The animated theme background (the one behind the Steam Store tile) shows
-   through a dark veil, lit like the PS5's settings: a spotlight just above
-   the top edge (17% in from the left) throws a warm cone down and to the
-   right, with distinct rays in it; it sways slowly, and the rays shift
-   against each other as it does (two layers at different speeds). A cool
-   haze lies on the "floor" at the bottom left. */
+/* The background is drawn by ui/lightbg.js (a canvas): the PS5's dark room
+   with a spotlight above the top-left corner. */
 .settings-view {
-  background: transparent;
+  background: #121219;
 }
 
 .set-bg {
   position: absolute;
   inset: 0;
-  overflow: hidden;
-  background:
-    /* the source, just above the screen */
-    radial-gradient(9% 16% at 17% -2%, rgba(255, 236, 226, 0.34), transparent 100%),
-    /* the cone's glow: brightest along its middle, down to the right */
-    radial-gradient(34% 70% at 24% 4%, rgba(255, 232, 222, 0.16), transparent 100%),
-    radial-gradient(48% 95% at 30% 14%, rgba(255, 232, 222, 0.07), transparent 100%),
-    /* the floor */
-    radial-gradient(46% 11% at 22% 90%, rgba(176, 184, 206, 0.2), transparent 100%),
-    linear-gradient(180deg, rgba(30, 30, 38, 0.66) 0%, rgba(22, 22, 31, 0.74) 50%, rgba(16, 16, 24, 0.82) 100%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0) 40%, rgba(6, 6, 14, 0.22) 100%);
-}
-
-/* The rays: streaks with crisp edges fanning out from the source (at
-   29.4% 15% of these layers, which overhang the screen by 30% each way),
-   fading with distance. */
-.set-bg::before,
-.set-bg::after {
-  content: "";
-  position: absolute;
-  inset: -30%;
-  transform-origin: 29.4% 15%;
-  /* Near the source the beams melt into its glow; they part further down. */
-  -webkit-mask-image: radial-gradient(45% 55% at 29.4% 15%, rgba(0, 0, 0, 0.35) 0%, #000 20%, rgba(0, 0, 0, 0.6) 52%, transparent 100%);
-  mask-image: radial-gradient(45% 55% at 29.4% 15%, rgba(0, 0, 0, 0.35) 0%, #000 20%, rgba(0, 0, 0, 0.6) 52%, transparent 100%);
-  filter: blur(0.7rem);
-  pointer-events: none;
-}
-
-/* Distinct beams with dark gaps between them, fanning from down-right
-   (~140deg) to down-left (~205deg); the brightest point down and to the right. */
-.set-bg::before {
-  background: conic-gradient(
-    from 128deg at 29.4% 15%,
-    transparent 0deg,
-    rgba(255, 236, 226, 0.12) 4deg,
-    rgba(255, 236, 226, 0.03) 9deg,
-    rgba(255, 236, 226, 0.22) 14deg,
-    rgba(255, 236, 226, 0.06) 19deg,
-    rgba(255, 236, 226, 0.3) 25deg,
-    rgba(255, 236, 226, 0.08) 31deg,
-    rgba(255, 236, 226, 0.25) 36deg,
-    rgba(255, 236, 226, 0.04) 41deg,
-    rgba(255, 236, 226, 0.2) 47deg,
-    rgba(255, 236, 226, 0.05) 53deg,
-    rgba(255, 236, 226, 0.17) 59deg,
-    rgba(255, 236, 226, 0.03) 65deg,
-    rgba(255, 236, 226, 0.11) 71deg,
-    transparent 78deg
-  );
-  animation: raysSway 9s var(--ease-in-out) infinite alternate;
-}
-
-/* Finer beams drifting the other way, so the rays shimmer as they cross. */
-.set-bg::after {
-  background: conic-gradient(
-    from 136deg at 29.4% 15%,
-    transparent 0deg,
-    rgba(255, 238, 230, 0.13) 5deg,
-    transparent 9deg,
-    rgba(255, 238, 230, 0.14) 16deg,
-    transparent 21deg,
-    rgba(255, 238, 230, 0.12) 29deg,
-    transparent 34deg,
-    rgba(255, 238, 230, 0.1) 43deg,
-    transparent 48deg,
-    rgba(255, 238, 230, 0.08) 57deg,
-    transparent 63deg
-  );
-  animation: raysSway2 13s var(--ease-in-out) infinite alternate;
-}
-
-@keyframes raysSway {
-  from { transform: rotate(-4deg); opacity: 0.85; }
-  to { transform: rotate(4deg); opacity: 1; }
-}
-
-@keyframes raysSway2 {
-  from { transform: rotate(3deg); opacity: 1; }
-  to { transform: rotate(-5deg); opacity: 0.7; }
-}
-
-body.reduce-motion .set-bg::before,
-body.reduce-motion .set-bg::after {
-  animation: none;
+  width: 100%;
+  height: 100%;
 }
 
 /* Into a category and back, timed like the screen change (see .view.anim-in):
@@ -185,11 +98,6 @@ body.reduce-motion .set-bg::after {
   transition: background 0.18s, box-shadow 0.18s;
 }
 
-.set-root-item.focused {
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 0 0 0.2rem rgba(225, 228, 235, 0.82), 0 0 2.4rem rgba(255, 255, 255, 0.05);
-}
-
 .sri-icon {
   width: 4rem;
   height: 4rem;
@@ -241,22 +149,27 @@ body.reduce-motion .set-bg::after {
   transition: opacity calc(0.23s * var(--spd)) var(--zoom-fade-ease) calc(0.11s * var(--spd));
 }
 
+/* The tabs, measured from the PS5: each 39.9 x 10.4rem (its frame), stacked
+   without gaps, the text 3.3rem in. A page with more tabs than fit shrinks them. */
 .set-nav {
   position: absolute;
-  left: 17.4rem;
-  top: 18.4rem;
-  width: 40rem;
+  left: 16.5rem;
+  top: 18.05rem;
+  bottom: 6rem;
+  width: 39.9rem;
   display: flex;
   flex-direction: column;
-  gap: 1.6rem;
   transform-origin: 78.6rem 35.6rem; /* the screen's middle */
 }
 
 .set-nav-item {
+  flex: 0 1 10.4rem;
+  min-height: 6.6rem;
+  display: flex;
+  align-items: center;
   text-align: left;
   font-size: 3rem;
-  padding: 1.4rem 2.2rem;
-  margin-left: -2.2rem;
+  padding: 0 3.3rem;
   border-radius: 1rem;
   color: var(--text-4);
   transition: color 0.2s, background 0.2s, box-shadow 0.2s;
@@ -268,8 +181,6 @@ body.reduce-motion .set-bg::after {
 
 .set-nav-item.focused {
   color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 0 0 0.2rem rgba(255, 255, 255, 0.9);
 }
 
 .set-list-wrap {
@@ -299,6 +210,12 @@ body.reduce-motion .set-bg::after {
 /* Another section of the page: its rows fade in together (no stagger, as on the PS5). */
 .set-list.enter > * {
   animation: listIn 0.2s var(--ease-out) both;
+}
+
+/* Another tab of the page: the old rows go at once; the new ones come in 0.11 s
+   later and fade in evenly over 0.21 s (measured from the PS5). */
+.set-list.swap > * {
+  animation: listIn 0.21s linear 0.11s both;
 }
 
 @keyframes listIn {
@@ -367,16 +284,6 @@ body.reduce-motion .set-bg::after {
   text-align: left;
   border-radius: 1rem;
   transition: background 0.18s, box-shadow 0.18s;
-}
-
-.set-item.focused {
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 0 0 0.2rem rgba(235, 238, 245, 0.92), 0 0 2.4rem rgba(255, 255, 255, 0.06);
-}
-
-.settings-view.nav-focus .set-item.focused {
-  box-shadow: none;
-  background: transparent;
 }
 
 .set-item.disabled {
@@ -463,9 +370,9 @@ body.reduce-motion .set-bg::after {
   background-size: 0 0;
 }
 
+/* The focused row has no fill, only the ring (and its line goes), as on the PS5. */
 .set-root-item.focused {
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: none;
+  background: none;
 }
 
 .set-item {
@@ -478,17 +385,12 @@ body.reduce-motion .set-bg::after {
 }
 
 .set-item.focused {
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: none;
+  background: none;
 }
 
 .set-nav-item {
   position: relative;
   --fx-r: 1rem;
-}
-
-.set-nav-item.focused {
-  box-shadow: none;
 }
 
 .si-value.ok {
@@ -581,4 +483,59 @@ body.reduce-motion .set-bg::after {
   width: 2.2rem;
   height: 2.2rem;
   border-radius: 50%;
+}
+
+/* Storage › PC Storage: every drive added up, as the PS5's Console Storage. */
+.set-block.st-sum {
+  padding: 0.6rem 0.4rem 3.4rem 0;
+}
+
+.sb-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.sb-name {
+  font-size: 3.1rem;
+  font-weight: 300;
+}
+
+.sb-size,
+.sb-free {
+  font-size: 2.6rem;
+  font-weight: 300;
+}
+
+.sb-bar {
+  display: flex;
+  height: 0.6rem;
+  margin: 2.6rem 0 2.2rem;
+  border-radius: 0.3rem;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sb-bar i {
+  height: 100%;
+  transition: width 0.6s var(--ease-out);
+}
+
+.sb-bar .games,
+.si-dot.games { background: #4da3f5; }
+.sb-bar .media,
+.si-dot.media { background: #5b25cf; }
+.sb-bar .other,
+.si-dot.other { background: #dedede; }
+
+.sb-free {
+  text-align: right;
+}
+
+.si-dot {
+  flex: none;
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: 50%;
+  margin-right: 1.2rem;
 }

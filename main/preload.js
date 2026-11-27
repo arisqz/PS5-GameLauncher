@@ -138,6 +138,7 @@ contextBridge.exposeInMainWorld('api', {
   emulatorsPads: invoke('emulators:pads'),
   openExternal: invoke('app:openExternal'),
   windowAction: invoke('window:action'),
+  perfHitch: invoke('perf:hitch'),
   power: invoke('power:action'),
 
   pathForFile: (file) => webUtils.getPathForFile(file),

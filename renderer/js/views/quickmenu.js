@@ -158,6 +158,15 @@ export class QuickMenu {
     else this.open();
   }
 
+  /** Open on one of its cards (id, e.g. 'party'), on a tab of it (Social: 'friends'…). */
+  openTo(id, tab = null) {
+    if (!this.ctl) this.open();
+    const i = this.items.findIndex((it) => it.id === id);
+    if (i < 0) return;
+    if (tab) this.gbTab = tab;
+    if (!(this.panel && this.panel.index === i)) this.openPanel(i);
+  }
+
   close({ quiet = false } = {}) {
     if (!this.ctl) return;
     if (this.customizing) this.exitCustomize({ quiet: true });
@@ -1206,6 +1215,9 @@ export class QuickMenu {
     sfx.move();
     const zone = this.zone;
     this.openPanel(this.panel.index, { keepIndex: 0 });
+    // As Settings' tabs: the old tab's rows go at once, the new ones fade in a moment later.
+    const main = this.panel.el.querySelector('.gb-main');
+    if (main) main.classList.add('swap');
     // The rows start from the top again; focus stays where it was (the rail).
     this.panel.nav.set(Math.max(0, this.panel.rows.findIndex((r) => r.type !== 'section')));
     this.zone = zone === 'rail' ? 'rail' : this.zone;

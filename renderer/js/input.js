@@ -56,8 +56,26 @@ const held = new Map(); // action -> { next, count }
 let cursorTimer = null;
 let suppressMouseUntil = 0;
 
+// The last move (up/down/left/right) and when: the focus ring's arrival flash
+// runs in its direction (ui/focusfx.js).
+let lastMove = { dir: null, at: 0 };
+
 export function setHandler(fn) {
-  handler = fn;
+  handler = (action, info) => {
+    if (REPEATABLE.has(action)) lastMove = { dir: action, at: performance.now() };
+    lastAny = { action, at: performance.now() };
+    return fn(action, info);
+  };
+}
+
+let lastAny = { action: null, at: 0 };
+/** The last button pressed and when (performance.now()), for the hitch log. */
+export function lastAction() {
+  return lastAny;
+}
+
+export function recentMove(within = 150) {
+  return performance.now() - lastMove.at <= within ? lastMove.dir : null;
 }
 
 export function getDevice() {

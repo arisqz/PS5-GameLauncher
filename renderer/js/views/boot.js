@@ -17,14 +17,23 @@ import { t } from '../i18n.js';
 const STEP = 35.2; // rem between avatar centres
 
 /**
- * @param {{ welcome: boolean, setHandler: Function, intro: (stage: BootStage) => Promise<void> }} o
+ * @param {{ welcome: boolean, setHandler: Function, intro: (stage: BootStage) => Promise<void>, setup?: (stage: BootStage) => Promise<void>, quiet?: boolean }} o
  *   intro plays the home screen's build-in; it resolves once the home screen
- *   can take input.
+ *   can take input. setup: the first-time setup, run over the stage (which
+ *   then shows the Settings light rays) before the home screen comes in.
+ *   quiet: no start-up sound (the window was only reloaded).
  */
-export async function runBoot({ welcome, setHandler, intro }) {
-  const stage = new BootStage().mount();
-  sfx.boot();
+export async function runBoot({ welcome, setHandler, intro, setup = null, quiet = false }) {
+  const stage = new BootStage({ rays: !!setup }).mount();
+  if (!quiet) sfx.boot();
   setHandler(() => {});
+  if (setup) {
+    await setup(stage);
+    stage.dimParticles();
+    await sleep(500);
+    await intro(stage);
+    return;
+  }
   if (!welcome) {
     stage.dimParticles();
     await sleep(700);

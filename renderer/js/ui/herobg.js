@@ -11,13 +11,19 @@ let token = 0;
 const tintCache = new Map();
 const appEl = document.getElementById('app');
 
-function extractTint(img) {
+// The colour is read from a 24 × 12 copy made off the main thread: drawing the
+// full picture (3840 × 1240 for a Steam hero) onto a canvas decoded it right
+// there, freezing the screen for up to half a second the first time each game
+// was selected.
+async function extractTint(img) {
   try {
+    const small = await createImageBitmap(img, { resizeWidth: 24, resizeHeight: 12, resizeQuality: 'low' });
     const c = document.createElement('canvas');
     c.width = 24;
     c.height = 12;
     const x = c.getContext('2d', { willReadFrequently: true });
-    x.drawImage(img, 0, 0, 24, 12);
+    x.drawImage(small, 0, 0);
+    small.close();
     const d = x.getImageData(0, 0, 24, 12).data;
     let r = 0;
     let g = 0;
@@ -43,10 +49,34 @@ function load(url) {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.decoding = 'async';
-    img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = url;
+    // Decoded off the main thread before it's shown, so the fade doesn't wait on it.
+    img.decode().then(
+      () => resolve(img),
+      () => resolve(img.complete && img.naturalWidth ? img : null)
+    );
   });
+}
+
+/** The picture as a canvas at about the screen's size (it drifts at up to 1.09×, so a little more). */
+async function heroCanvas(img) {
+  const want = Math.round(Math.min(img.naturalWidth, window.innerWidth * Math.min(window.devicePixelRatio || 1, 2) * 1.12));
+  const h = Math.max(1, Math.round((img.naturalHeight * want) / img.naturalWidth));
+  const c = document.createElement('canvas');
+  c.className = 'hero-img';
+  try {
+    const bmp = await createImageBitmap(img, { resizeWidth: want, resizeHeight: h, resizeQuality: 'high' });
+    c.width = bmp.width;
+    c.height = bmp.height;
+    c.getContext('2d').drawImage(bmp, 0, 0);
+    bmp.close();
+    return c;
+  } catch {
+    img.className = 'hero-img';
+    img.alt = '';
+    return img;
+  }
 }
 
 export const heroBg = {
@@ -70,13 +100,20 @@ export const heroBg = {
       background.setVisible(true);
       return;
     }
-    if (!tintCache.has(url)) tintCache.set(url, extractTint(img));
+    if (!tintCache.has(url)) tintCache.set(url, await extractTint(img));
+    if (my !== token) return;
     const tint = tintCache.get(url);
     if (tint) appEl.style.setProperty('--tint', tint);
 
     const next = layers[active ^ 1];
     const prev = layers[active];
-    next.style.backgroundImage = `url("${url}")`;
+    // On screen as a canvas, decoded (off the main thread) and scaled to the
+    // screen beforehand. An <img> or CSS background is decoded again by the
+    // compositor the first time it's drawn, and the frame waits for it: a
+    // 3840 × 1240 PNG hero (Fortnite's) held one for 210 ms (startup trace).
+    const pic = await heroCanvas(img);
+    if (my !== token) return;
+    next.replaceChildren(pic);
     // Keep each image's treatment through its entire fade, including hide().
     next.classList.toggle('blur-art', blur);
     // Restart only the incoming layer. The outgoing layer keeps its drift

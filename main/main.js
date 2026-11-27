@@ -77,6 +77,8 @@ const DEFAULT_SETTINGS = {
   qmHidden: [],
   restoreOnExit: true,
   welcomeScreen: true,
+  // First-time setup finished or skipped (people who used the launcher before it existed: true)
+  setupDone: false,
   // Controller passthrough: games get a virtual DualSense (needs HidHide + usbip-win2)
   controllerPassthrough: false,
   // What the DualSense is shown to games as: dualsense | dualshock4 | xbox360
@@ -153,7 +155,55 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // The launcher's own sound (game theme music, clips) isn't media for Windows:
 // no entry in its media controls, media keys stay with the player apps, and
 // the "another app is playing media" check doesn't see the launcher itself.
-app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService');
+// ParkableImagesToDisk: Chromium writes pictures that sat unused (the launcher
+// in the background during a game) out to disk, and reading one back held the
+// first frames that showed it again (traced: ~220 ms on a game's art).
+app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService,ParkableImagesToDisk');
+
+/*
+ * The only <webview> the launcher has: SteamGridDB in the first-time setup,
+ * where the user signs in with Steam and the API key is read off SteamGridDB's
+ * API page. It is a plain web page in its own session (persist:sgdb): no
+ * preload, no Node, sandboxed, and it stays on SteamGridDB and Steam's sign-in
+ * pages. Links anywhere else open in the default browser instead.
+ */
+const WEBVIEW_HOSTS = /^(?:www\.)?steamgriddb\.com$|^steamcommunity\.com$|^(?:[a-z0-9-]+\.)*steampowered\.com$/i;
+function webviewAllowed(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && WEBVIEW_HOSTS.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+function guardWebviews(contents) {
+  contents.on('will-attach-webview', (e, prefs, params) => {
+    delete prefs.preload;
+    prefs.nodeIntegration = false;
+    prefs.nodeIntegrationInSubFrames = false;
+    prefs.contextIsolation = true;
+    prefs.sandbox = true;
+    prefs.webSecurity = true;
+    if (!/^https:\/\/(www\.)?steamgriddb\.com\//i.test(params.src || '') || params.partition !== 'persist:sgdb') e.preventDefault();
+  });
+  contents.on('did-attach-webview', (_e, guest) => {
+    guest.on('will-navigate', (e, url) => {
+      if (webviewAllowed(url)) return;
+      e.preventDefault();
+      if (/^https?:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
+    });
+    guest.on('will-redirect', (e, url) => {
+      if (!webviewAllowed(url)) e.preventDefault();
+    });
+    // A page asking for a new window (Steam's sign-in, say): in this same view when allowed.
+    guest.setWindowOpenHandler(({ url }) => {
+      if (webviewAllowed(url)) guest.loadURL(url).catch(() => {});
+      else if (/^https?:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
+      return { action: 'deny' };
+    });
+    guest.session.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+  });
+}
 
 /**
  * The launcher used to be called "ClaudeLauncher" and kept its data in
@@ -204,7 +254,13 @@ function start() {
   const artDir = path.join(dataDir, 'artwork');
   const avatarDir = path.join(dataDir, 'avatars');
   const packs = new SoundPacks(path.join(dataDir, 'soundpacks'));
-  const settings = new JsonStore(path.join(dataDir, 'settings.json'), DEFAULT_SETTINGS);
+  const settingsFile = path.join(dataDir, 'settings.json');
+  const hadSettings = fs.existsSync(settingsFile);
+  const settings = new JsonStore(settingsFile, DEFAULT_SETTINGS);
+  if (hadSettings && !/"setupDone"/.test(fs.readFileSync(settingsFile, 'utf8'))) {
+    settings.data.setupDone = true;
+    settings.saveSoon();
+  }
   // Electron requires this before app readiness and before any windows exist.
   // Enabling again uses Electron's default GPU acceleration on the next launch.
   if (settings.data.hardwareAcceleration === false) app.disableHardwareAcceleration();
@@ -601,9 +657,13 @@ function start() {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        // The first-time setup shows SteamGridDB's own pages (signing in with
+        // Steam, then its API page) in a <webview>; see guardWebviews().
+        webviewTag: true,
       },
     });
     Menu.setApplicationMenu(null);
+    guardWebviews(win.webContents);
     win.loadURL('app://ui/index.html');
     win.once('ready-to-show', () => win.show());
 
@@ -665,6 +725,18 @@ function start() {
   }
 
   app.whenReady().then(() => {
+    // Diagnosing stutters: with logs\trace-startup present, the first 30 s are
+    // recorded as a Chromium trace (logs\startup-trace.json, opens in
+    // chrome://tracing or Perfetto), once; the flag file is removed.
+    const traceFlag = path.join(dataDir, 'logs', 'trace-startup');
+    if (fs.existsSync(traceFlag)) {
+      fs.rmSync(traceFlag, { force: true });
+      const { contentTracing } = require('electron');
+      contentTracing
+        .startRecording({ included_categories: ['devtools.timeline', 'disabled-by-default-devtools.timeline.frame', 'toplevel', 'blink.image_decode'], excluded_categories: ['*'] })
+        .then(() => setTimeout(() => contentTracing.stopRecording(path.join(dataDir, 'logs', 'startup-trace.json')).catch(() => {}), 20000))
+        .catch(() => {});
+    }
     const rendererDir = path.join(__dirname, '..', 'renderer');
     // app://ui/... -> renderer files, app://art/... -> cached artwork,
     // app://avatar/... -> profile pictures
@@ -742,10 +814,16 @@ function start() {
   app.on('before-quit', (e) => {
     if (pausedPid) system.request('resume', { pid: pausedPid }).catch(() => {});
     // Close OBS cleanly first (it was started by the launcher, in the tray).
+    // That can take a while (giving OBS its own profile and scenes back, then
+    // waiting for it to exit), so the launcher is gone from the screen at once
+    // and the clean-up gets 8 s at most: before, the window stayed up during
+    // it and Exit looked like it had to be chosen twice.
     if (!obsClosed && obs.ws) {
       e.preventDefault();
       obsClosed = true;
-      obs.shutdown().finally(() => app.quit());
+      if (win && !win.isDestroyed()) win.hide();
+      if (overlay.win && !overlay.win.isDestroyed()) overlay.win.hide();
+      Promise.race([obs.shutdown().catch(() => {}), new Promise((r) => setTimeout(r, 8000))]).finally(() => app.quit());
     }
   });
 
@@ -777,6 +855,7 @@ function start() {
       node: process.versions.node,
       platform: `${process.platform} ${process.getSystemVersion()}`,
       dataDir,
+      sgdb: !!sgdb.keyFor(settings.data.sgdbKey),
       steam: library.steamInfo,
       epic: library.epicFound,
       xbox: library.xboxFound,
@@ -829,6 +908,7 @@ function start() {
   });
 
   ipcMain.handle('info:get', () => ({
+    sgdb: !!sgdb.keyFor(settings.data.sgdbKey),
     steam: library.steamInfo,
     epic: library.epicFound,
     xbox: library.xboxFound,
@@ -957,12 +1037,20 @@ function start() {
   ipcMain.handle('fs:open', async (_e, p) => ((await files.kind(p)) === 'file' ? shell.openPath(path.resolve(p)) : 'not a file'));
 
   /* ---- Emulators (main/emulators.js) ------------------------------ */
+  // Each console's emulator (emulators.PLATFORMS: Switch, Switch 2), null when not set.
   async function emulatorInfo() {
-    const conf = (settings.data.emulators || {}).switch;
-    if (!conf || !conf.exe) return { switch: null };
-    const info = await emulators.detectSwitch(conf.exe);
-    const count = library.games.filter((g) => g.source === 'emulator' && g.platform === 'switch').length;
-    return { switch: { ...info, fullscreen: conf.fullscreen !== false, count, players: conf.players || [] } };
+    const out = {};
+    for (const platform of emulators.PLATFORMS) {
+      const conf = (settings.data.emulators || {})[platform];
+      if (!conf || !conf.exe) {
+        out[platform] = null;
+        continue;
+      }
+      const info = await emulators.detectSwitch(conf.exe);
+      const count = library.games.filter((g) => g.source === 'emulator' && g.platform === platform).length;
+      out[platform] = { ...info, fullscreen: conf.fullscreen !== false, count, players: conf.players || [] };
+    }
+    return out;
   }
   ipcMain.handle('emulators:info', () => emulatorInfo());
   // The controllers connected now, for the players' choices.
@@ -975,7 +1063,8 @@ function start() {
    * players whose controller isn't there.
    */
   async function applySwitchPlayers(g) {
-    const conf = (settings.data.emulators || {}).switch;
+    const conf = (settings.data.emulators || {})[g.platform];
+    if (!conf || !conf.exe) return null;
     const wanted = (conf && conf.players) || [];
     if (!wanted.some(Boolean)) return null;
     const info = await emulators.detectSwitch(conf.exe);
@@ -1006,8 +1095,8 @@ function start() {
   }
   // Set (or change) an emulator: checked first, then its games are scanned in.
   ipcMain.handle('emulators:set', async (_e, platform, conf) => {
-    if (platform !== 'switch' || !conf) return emulatorInfo();
-    const cur = (settings.data.emulators || {}).switch || {};
+    if (!emulators.PLATFORMS.includes(platform) || !conf) return emulatorInfo();
+    const cur = (settings.data.emulators || {})[platform] || {};
     const next = {
       ...cur,
       exe: conf.exe !== undefined ? String(conf.exe || '') : cur.exe,
@@ -1021,16 +1110,16 @@ function start() {
       });
     }
     if (conf.players !== undefined && conf.exe === undefined && conf.fullscreen === undefined) {
-      settings.data.emulators = { ...(settings.data.emulators || {}), switch: next };
+      settings.data.emulators = { ...(settings.data.emulators || {}), [platform]: next };
       settings.saveNow();
       send('settings:changed', settings.data);
       return emulatorInfo();
     }
     if (conf.exe !== undefined) {
       const info = await emulators.detectSwitch(next.exe);
-      if (!info.userDir) return { switch: { ...info, count: 0 }, rejected: true };
+      if (!info.userDir) return { [platform]: { ...info, count: 0 }, rejected: true };
     }
-    settings.data.emulators = { ...(settings.data.emulators || {}), switch: next };
+    settings.data.emulators = { ...(settings.data.emulators || {}), [platform]: next };
     settings.saveNow();
     send('settings:changed', settings.data);
     await library.scan({ silent: conf.exe === undefined });
@@ -1054,7 +1143,7 @@ function start() {
     monitor.noteLaunch(id);
     launchingPad = { id, until: Date.now() + 90000 };
     applyEmulation();
-    if (g.source === 'emulator' && g.platform === 'switch') {
+    if (g.source === 'emulator' && emulators.PLATFORMS.includes(g.platform)) {
       const note = await applySwitchPlayers(g).catch((err) => (console.warn('[switch players]', err), 'The emulator’s players couldn’t be set up.'));
       if (note) send('notify', { title: g.name, body: note, icon: 'gamepad', kind: 'game' });
     }
@@ -1389,6 +1478,44 @@ function start() {
     }
     return null;
   });
+
+  /* ---- Hitch log (renderer/js/perflog.js): stutters, one line each ---- */
+  const hitchFile = path.join(dataDir, 'logs', 'hitches.log');
+  let hitchDir = false;
+  const writeHitch = (text) => {
+    const line = `${new Date().toISOString()}  ${text}\n`;
+    (async () => {
+      if (!hitchDir) {
+        await fs.promises.mkdir(path.dirname(hitchFile), { recursive: true });
+        hitchDir = true;
+      }
+      // Kept small: past 1 MB the file starts over (the last one is kept as .old).
+      const st = await fs.promises.stat(hitchFile).catch(() => null);
+      if (st && st.size > 1024 * 1024) await fs.promises.rename(hitchFile, `${hitchFile}.old`).catch(() => {});
+      await fs.promises.appendFile(hitchFile, line);
+    })().catch(() => {});
+  };
+  ipcMain.handle('perf:hitch', (e, h) => {
+    if (!h || typeof h !== 'object') return;
+    const who = overlay.win && !overlay.win.isDestroyed() && e.sender === overlay.win.webContents ? 'overlay' : 'window';
+    const parts = [`${who} frame ${h.ms} ms`];
+    if (h.blocking) parts.push(`blocking ${h.blocking} ms`);
+    if (h.render) parts.push(`rendering ${h.render} ms (style+layout ${h.styleLayout || 0} ms)`);
+    parts.push(`on: ${h.screen}`);
+    if (h.input) parts.push(`last input: ${h.input}`);
+    parts.push(`uptime ${h.uptime}s`);
+    if (Array.isArray(h.scripts) && h.scripts.length) parts.push(`scripts: ${h.scripts.join(' | ')}`);
+    writeHitch(parts.join(' · '));
+  });
+  // The main process itself busy (it answers the window's requests): a timer that comes late.
+  {
+    let expect = Date.now() + 100;
+    setInterval(() => {
+      const late = Date.now() - expect;
+      if (late >= 150) writeHitch(`main process busy ${late} ms`);
+      expect = Date.now() + 100;
+    }, 100).unref();
+  }
 
   ipcMain.handle('window:action', (_e, action) => {
     if (!win) return;

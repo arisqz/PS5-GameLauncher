@@ -9,7 +9,7 @@ import { rumble, mouseActive } from '../input.js';
 import { FocusList } from '../ui/overlay.js';
 import { heroBg } from '../ui/herobg.js';
 import { tileArt, specialArt } from '../ui/tiles.js';
-import { HubPanel } from '../ui/gamehub.js';
+import { HubPanel, warmLogos } from '../ui/gamehub.js';
 import { tileDownload, updateTileDownloads } from '../ui/downloads.js';
 import { launchGame, gameOptions, isRunning } from '../ui/gameactions.js';
 import { optionsMenu, confirmDialog } from '../ui/dialogs.js';
@@ -50,7 +50,7 @@ export class HomeView {
     on('running', () => this.refresh());
     on('downloads', () => updateTileDownloads(this.carousel));
     on('settings', (k) => {
-      if (k === null || ['homeCount', 'homeSort', 'showStore', 'tileStyle', 'profileName', 'avatar'].includes(k)) this.refresh(true);
+      if (k === null || ['homeCount', 'homeSort', 'tileStyle', 'profileName', 'avatar'].includes(k)) this.refresh(true);
     });
   }
 
@@ -93,18 +93,30 @@ export class HomeView {
       { passive: false }
     );
 
+    const deep = (z) => z === 'cards' || z === 'widgets';
     this.hub = new HubPanel({
       onFocusRequest: (zone, i, how) => {
         // Hovering must not scroll the page between the hero and the cards.
-        if (how === 'hover' && (zone === 'cards') !== (this.zone === 'cards')) return;
+        if (how === 'hover' && deep(zone) !== deep(this.zone)) return;
         this.focusZone(zone, i, true);
       },
+      onWidgetFocus: (i, how) => {
+        if (how === 'hover' && this.zone !== 'widgets') return;
+        this.focusZone('widgets', i, true);
+      },
       openView: (name, params) => this.router.open(name, params),
+      openQuick: (id, tab) => this.router.quick && this.router.quick.openTo(id, tab),
+      // Explore's Recently Played: its tile on Home, or its game hub when it isn't there.
+      focusGame: (id) => {
+        if (!this.focusGame(id)) this.router.open('hub', { id });
+      },
       onDownloadsChanged: () => this.restoreFocusVisual(),
     });
+    // Explore scrolled in (its widgets focused): its name top left, as on the PS5.
+    this.exploreHead = h('div', { class: 'explore-head', html: `<span class="eh-icon">${icon('explore')}</span><span>${t('Explore')}</span>` });
 
     this.scroller = h('div', { class: 'home-scroller' }, this.carousel, this.titleEl, this.hub.el);
-    this.el = h('section', { class: 'view home-view' }, this.topbar, this.scroller);
+    this.el = h('section', { class: 'view home-view' }, this.topbar, this.scroller, this.exploreHead);
     this.el.addEventListener(
       'wheel',
       (e) => {
@@ -112,7 +124,11 @@ export class HomeView {
         const now = performance.now();
         if (now - (this.lastPageWheel || 0) < 350) return;
         this.lastPageWheel = now;
-        if (e.deltaY > 0 && this.zone !== 'cards' && this.hub.hasCards()) this.focusZone('cards', 0);
+        const explore = this.items[this.sel]?.type === 'explore';
+        if (explore) {
+          if (e.deltaY > 0 && this.zone !== 'widgets') this.focusZone('widgets');
+          else if (e.deltaY < 0 && this.zone === 'widgets') this.focusZone('carousel');
+        } else if (e.deltaY > 0 && this.zone !== 'cards' && this.hub.hasCards()) this.focusZone('cards', 0);
         else if (e.deltaY < 0 && this.zone === 'cards') this.focusZone('actions', 0);
       },
       { passive: true }
@@ -128,7 +144,8 @@ export class HomeView {
     const items = [];
     if (this.tab === 'game') {
       const list = homeGames('game');
-      if (s.showStore !== false) items.push({ type: 'store', key: 'store' });
+      // Explore first, where Home starts (as on the PS5).
+      items.push({ type: 'explore', key: 'explore' });
       if (!state.games.length) items.push({ type: 'add', key: 'add' });
       for (const g of list) items.push({ type: 'game', key: `g:${g.id}`, game: g });
     } else {
@@ -142,7 +159,7 @@ export class HomeView {
   }
 
   defaultIndex(items) {
-    const i = items.findIndex((it) => it.type === 'game' || it.type === 'add' || it.type === 'media-empty' || it.type === 'nowplaying');
+    const i = items.findIndex((it) => it.type === 'explore' || it.type === 'game' || it.type === 'add' || it.type === 'media-empty' || it.type === 'nowplaying');
     return i >= 0 ? i : 0;
   }
 
@@ -185,6 +202,9 @@ export class HomeView {
     if (this.zone === 'cards' && !this.hub.hasCards()) this.zone = 'actions';
     this.restoreFocusVisual();
     this.updateHeroSoon();
+    // The logos of the games on Home, decoded ahead (selecting one then doesn't wait for it).
+    warmLogos(this.items.filter((i) => i.game).map((i) => artUrl(i.game, 'logo')));
+    this.warmTiles();
     this.profileBtn.innerHTML = `${avatarHtml('tb-avatar')}<i class="tb-online"></i>`;
   }
 
@@ -229,6 +249,27 @@ export class HomeView {
     this.carousel.innerHTML = '';
     this.carousel.append(frag);
     this.tileEls = keep;
+  }
+
+  /**
+   * The art of tiles off the edge of the screen, loaded and decoded in idle
+   * time. Otherwise the first scroll onto one (after start-up) decoded it while
+   * the frame waited: a 150-200 ms hitch on that game (hitches.log).
+   */
+  warmTiles() {
+    const imgs = [...this.carousel.querySelectorAll('.tile-art img')].filter((img) => !img._warm);
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 50));
+    const next = () => {
+      const img = imgs.shift();
+      if (!img) return;
+      img._warm = true;
+      img.loading = 'eager';
+      img
+        .decode()
+        .catch(() => {})
+        .finally(() => idle(next));
+    };
+    idle(next);
   }
 
   onTileClick(el) {
@@ -284,7 +325,7 @@ export class HomeView {
           ? it.game.name
           : it.type === 'nowplaying'
             ? appName(sys.media && sys.media.app)
-            : t({ library: 'Game Library', store: 'Steam Store', add: 'Add Games', 'media-empty': 'Media' }[it.type] || '');
+            : t({ library: 'Game Library', explore: 'Explore', add: 'Add Games', 'media-empty': 'Media' }[it.type] || '');
     }
     if (animate) replayClass(this.titleEl, 'swap');
   }
@@ -339,6 +380,8 @@ export class HomeView {
     if (zone === 'top' && index !== null) this.topNav.set(index, { silent: true });
     if (zone === 'actions' && index !== null) this.hub.actions.set(index);
     if (zone === 'cards' && index !== null) this.hub.cardNav.set(index);
+    if (zone === 'widgets' && !this.hub.explore) return;
+    if (zone === 'widgets' && index !== null) this.hub.explore.set(index);
     if (changed && !fromMouse) sfx.move();
     this.restoreFocusVisual();
     // Pop only when returning focus with keyboard/controller, not on mouse clicks.
@@ -352,6 +395,7 @@ export class HomeView {
     this.topNav.blur();
     this.hub.actions.blur();
     this.hub.cardNav.blur();
+    if (this.hub.explore) this.hub.explore.blur();
     this.tileEls.forEach((el) => el.classList.remove('focused'));
     if (z === 'top') this.topNav.refocus();
     else if (z === 'carousel') {
@@ -359,8 +403,11 @@ export class HomeView {
       if (el) el.classList.add('focused');
     } else if (z === 'actions') this.hub.actions.refocus();
     else if (z === 'cards') this.hub.cardNav.refocus();
+    else if (z === 'widgets' && this.hub.explore) this.hub.explore.refocus();
 
     this.el.classList.toggle('scrolled', z === 'cards');
+    this.el.classList.toggle('explore-deep', z === 'widgets');
+    if (z !== 'widgets' && this.hub.explore) this.hub.explore.reset();
     heroBg.deep(z === 'cards');
     this.tabs.forEach((t) => t.classList.toggle('active', t.dataset.tab === this.tab));
   }
@@ -428,15 +475,14 @@ export class HomeView {
     // The press must end at rest, not reveal a queued focus pop afterwards.
     inner?.classList.remove('pop');
     replayClass(inner, 'press');
-    // A game: what its main button says (Play Game, Continue, or Update when one is waiting).
+    // A game: what its main button says (Play, Continue, or Update when one is waiting).
     // Started from its cover: the launch screen comes out of the cover.
     if (it.type === 'game') this.hub.item && this.hub.item.key === it.key ? this.hub.activateAction(0, el) : launchGame(it.game, { from: el });
     else if (it.type === 'library' || it.type === 'media-empty') {
       sfx.select();
       this.router.open('library', { tab: it.type === 'media-empty' ? 'media' : 'game' });
-    } else if (it.type === 'store') {
-      sfx.select();
-      api.openExternal('steam://store');
+    } else if (it.type === 'explore') {
+      this.focusZone('widgets');
     } else if (it.type === 'add') {
       sfx.select();
       addGameFolder();
@@ -459,6 +505,11 @@ export class HomeView {
   /* ---------------------------------------------------------------- */
 
   handle(action) {
+    // On Explore's widgets L1 / R1 belong to them (the storage widget's drives).
+    if ((action === 'l1' || action === 'r1') && this.zone === 'widgets') {
+      if (!this.hub.explore.shoulder(action === 'l1' ? -1 : 1)) sfx.bump();
+      return true;
+    }
     if (action === 'l1') return this.switchTab('game'), true;
     if (action === 'r1') return this.switchTab('media'), true;
     if (action === 'search') return this.router.openSearch(), true;
@@ -472,8 +523,37 @@ export class HomeView {
         return this.handleActions(action);
       case 'cards':
         return this.handleCards(action);
+      case 'widgets':
+        return this.handleWidgets(action);
     }
     return false;
+  }
+
+  /** Explore's widgets: around the grid; up off its top row goes back to the tiles. */
+  handleWidgets(action) {
+    const ex = this.hub.explore;
+    switch (action) {
+      case 'left':
+      case 'right':
+      case 'down':
+        if (ex.move(action)) sfx.move();
+        else sfx.bump();
+        break;
+      case 'up':
+        if (ex.move('up')) sfx.move();
+        else this.focusZone('carousel');
+        break;
+      case 'back':
+        sfx.back();
+        this.focusZone('carousel');
+        break;
+      case 'confirm':
+        ex.activate();
+        break;
+      default:
+        return false;
+    }
+    return true;
   }
 
   handleTop(action) {
@@ -502,7 +582,8 @@ export class HomeView {
         this.focusZone('top');
         break;
       case 'down':
-        this.focusZone('actions', 0);
+        if (this.items[this.sel]?.type === 'explore') this.focusZone('widgets');
+        else this.focusZone('actions', 0);
         break;
       case 'confirm':
         this.activateTile();

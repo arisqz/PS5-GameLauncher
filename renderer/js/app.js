@@ -7,6 +7,7 @@ import { background } from './background.js';
 import { heroBg } from './ui/herobg.js';
 import { topOverlay } from './ui/overlay.js';
 import { initToasts } from './ui/toast.js';
+import { watchFocusRings } from './ui/focusfx.js';
 import { HomeView } from './views/home.js';
 import { LibraryView } from './views/library.js';
 import { SettingsView } from './views/settings.js';
@@ -16,6 +17,8 @@ import { QuickMenu } from './views/quickmenu.js';
 import { openSearch } from './views/search.js';
 import { GalleryView } from './views/gallery.js';
 import { runBoot } from './views/boot.js';
+import { runSetup, setupResume } from './views/setup.js';
+import { startHitchLog } from './perflog.js';
 import { loadDiscord } from './discord.js';
 import { loadFriends } from './steamfriends.js';
 import { initDualsense } from './dualsense.js';
@@ -146,8 +149,10 @@ function applySettings() {
   // A new language rebuilds the whole interface: reload, then come back to
   // the Language setting (without the welcome screen).
   if (appliedLanguage !== null && (s.language || 'auto') !== appliedLanguage) {
+    // (In the first-time setup: on with its next step.)
+    const step = setupResume();
     try {
-      sessionStorage.setItem('reopen', JSON.stringify({ category: 'system', section: 'Language and Font' }));
+      sessionStorage.setItem('reopen', JSON.stringify(step >= 0 ? { setup: step } : { category: 'system', section: 'Language and Font' }));
     } catch {}
     location.reload();
     return;
@@ -214,6 +219,7 @@ async function main() {
   applySettings();
   applyWindow();
   background.init();
+  watchFocusRings();
   initToasts();
 
   const home = new HomeView(router);
@@ -224,6 +230,7 @@ async function main() {
   router.register(new DownloadsView(router));
   router.register(new GalleryView(router));
   quick = new QuickMenu(router);
+  router.quick = quick;
 
   setHandler((action, meta) => {
     if (booting) {
@@ -331,6 +338,7 @@ async function main() {
 
   setupDragDrop();
   window.__app = { router, state };
+  startHitchLog(router);
 
   router.stack = ['home'];
   document.body.classList.add('booting');
@@ -340,8 +348,13 @@ async function main() {
   // loaded by the time the stage fades.
   home.show({});
 
+  // The first-time setup comes first (and again after its language step reloads the window).
+  const resumeSetup = reopen && typeof reopen.setup === 'number' ? reopen.setup : null;
+  const needSetup = resumeSetup !== null || !state.settings.setupDone;
   await runBoot({
-    welcome: state.settings.welcomeScreen !== false && !reopen,
+    welcome: state.settings.welcomeScreen !== false && !reopen && !needSetup,
+    quiet: resumeSetup !== null,
+    setup: needSetup ? (stage) => runSetup({ stage, start: resumeSetup || 0 }) : null,
     setHandler: (fn) => {
       bootHandler = fn;
     },
@@ -351,7 +364,7 @@ async function main() {
   bootHandler = null;
   ambientReady = true;
   updateAmbient();
-  if (reopen) router.open('settings', reopen);
+  if (reopen && reopen.category) router.open('settings', reopen);
 }
 
 /*

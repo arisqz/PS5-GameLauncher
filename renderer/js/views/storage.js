@@ -61,14 +61,56 @@ export function driveCardHtml(d) {
     </span>`;
 }
 
-/** Settings › Storage › Games and Apps: one card per drive. */
-export function storageItems() {
+/** The Media Gallery's size (its captures), read when Storage opens. */
+export async function loadCaptureSize() {
+  try {
+    const list = await api.captureList();
+    state.captureBytes = (list || []).reduce((n, c) => n + (c.size || 0), 0);
+  } catch {
+    state.captureBytes = state.captureBytes || 0;
+  }
+  emit('storage');
+}
+
+/**
+ * Settings › Storage › PC Storage, as the PS5's Console Storage: every drive
+ * of the PC added up (its size, a bar, the free space), then what's on them
+ * (Games and Apps opens the screen to delete games, Media Gallery the
+ * captures), then each drive.
+ */
+export function storageItems(router) {
   const st = state.storage;
-  if (!st) return [{ type: 'info', label: 'Games and Apps', value: 'Calculating…' }];
+  if (!st) return [{ type: 'info', label: 'PC Storage', value: 'Calculating…' }];
   if (!st.drives.length) return [{ type: 'info', label: 'No drives found', value: '' }];
+  const total = st.drives.reduce((n, d) => n + d.total, 0);
+  const free = st.drives.reduce((n, d) => n + d.free, 0);
+  const used = Math.max(0, total - free);
+  const games = Math.min(used, st.drives.reduce((n, d) => n + (d.games || 0), 0));
+  const media = Math.min(used - games, state.captureBytes || 0);
+  const other = Math.max(0, used - games - media);
+  const pct = (n) => (total ? Math.max(0, Math.min(100, (n / total) * 100)) : 0);
+  // Games and Apps opens on the drive with the most games.
+  const busiest = [...st.drives].sort((a, b) => (b.games || 0) - (a.games || 0))[0];
   return [
-    ...st.drives.map((d) => ({ type: 'drive', label: driveName(d), html: () => driveCardHtml(d), run: () => openGamesAndApps(d.letter) })),
-    { type: 'note', label: 'Select a drive to see its games and delete the ones you no longer need.' },
+    {
+      type: 'block',
+      label: 'PC storage',
+      cls: 'st-sum',
+      html: () => `<div class="sb-top"><span class="sb-name">${escapeHtml(t('PC storage'))}</span><span class="sb-size">${escapeHtml(t('Size: {size}', { size: fmtSize(total) }))}</span></div>
+        <div class="sb-bar"><i class="games" style="width:${pct(games)}%"></i><i class="media" style="width:${pct(media)}%"></i><i class="other" style="width:${pct(other)}%"></i></div>
+        <div class="sb-free">${escapeHtml(t('Free space: {size}', { size: fmtSize(free) }))}</div>`,
+    },
+    { type: 'action', dot: 'games', label: 'Games and Apps', value: fmtSize(games), chev: false, run: (el) => openGamesAndApps(busiest && busiest.letter, { from: el }) },
+    { type: 'action', dot: 'media', label: 'Media Gallery', value: fmtSize(media), chev: false, run: () => router && router.open('gallery') },
+    { type: 'info', dot: 'other', label: 'Other', value: fmtSize(other) },
+    { type: 'header', label: 'Drives' },
+    ...st.drives.map((d) => ({
+      type: 'action',
+      icon: 'drive',
+      label: driveName(d),
+      value: t('{free} free of {total}', { free: fmtSize(d.free), total: fmtSize(d.total) }),
+      run: (el) => openGamesAndApps(d.letter, { from: el }),
+    })),
   ];
 }
 
@@ -151,7 +193,8 @@ const SORTS = [
 /* Games and Apps                                                      */
 /* ------------------------------------------------------------------ */
 
-export function openGamesAndApps(letter) {
+/** from: the row it was opened from (the screen grows out of it, as between Settings' pages). */
+export function openGamesAndApps(letter, { from = null } = {}) {
   let drives = [];
   let drive = letter;
   let sort = 'date';
@@ -193,7 +236,15 @@ export function openGamesAndApps(letter) {
     ['confirm', 'Select'],
     ['back', 'Back'],
   ]);
-  const root = h('div', { class: 'overlay sel-overlay ga-overlay' }, title, tabsRow, sortRow, listWrap, empty, side, hints);
+  // Everything but the title and the button hints zooms (the titles crossfade, as in Settings).
+  const body = h('div', { class: 'ga-body' }, tabsRow, sortRow, listWrap, empty, side);
+  const root = h('div', { class: 'overlay sel-overlay ga-overlay' }, title, body, hints);
+  // The point both screens zoom about: the chosen row's middle (else the screen's).
+  const r = from && from.getBoundingClientRect ? from.getBoundingClientRect() : null;
+  const origin = r && r.width ? `${r.left + r.width / 2}px ${r.top + r.height / 2}px` : '50% 50%';
+  body.style.transformOrigin = origin;
+  const page = document.querySelector('.settings-view .set-page');
+  if (page) page.style.transformOrigin = origin;
 
   let tabEls = [];
   let rowEls = [];
@@ -231,7 +282,7 @@ export function openGamesAndApps(letter) {
     for (const id of [...picked]) if (!games.some((g) => g.id === id && canDelete(g))) picked.delete(id);
 
     tabEls = drives.map((d, i) => {
-      const el = h('button', { class: `lib-tab ga-tab fx${d.letter === drive ? ' active' : ''}`, text: driveName(d) });
+      const el = h('button', { class: `ga-tab fx fx-in${d.letter === drive ? ' active' : ''}`, text: driveName(d) });
       el.addEventListener('mouseenter', () => mouseActive() && focus('tabs', i));
       el.addEventListener('click', () => {
         focus('tabs', i);
@@ -256,6 +307,9 @@ export function openGamesAndApps(letter) {
           }</span>
           <span class="ga-meta"><span class="ga-size">${g.size == null ? escapeHtml(t('Calculating…')) : fmtSize(g.size)}</span><span class="ga-date">${escapeHtml(g.lastUsed ? fmtDate(g.lastUsed) : t('Not played yet'))}</span></span>`,
       });
+      // No art (or it doesn't load): the gamepad instead of a broken picture.
+      const img = el.querySelector('.ga-art img');
+      if (img) img.addEventListener('error', () => (img.parentElement.innerHTML = icon('gamepad')), { once: true });
       el._game = g;
       el.addEventListener('mouseenter', () => mouseActive() && focus('list', i));
       el.addEventListener('click', () => {
@@ -331,7 +385,16 @@ export function openGamesAndApps(letter) {
     listNav.setItems([], 0);
     sfx.move();
     build();
+    // As Settings' tabs: this drive's games go at once, the next's fade in a moment later.
+    for (const el of [list, side]) {
+      el.classList.remove('swap');
+      void el.offsetWidth;
+      el.classList.add('swap');
+    }
+    clearTimeout(swapTimer);
+    swapTimer = setTimeout(() => [list, side].forEach((el) => el.classList.remove('swap')), 400);
   }
+  let swapTimer = 0;
 
   async function pickSort() {
     sfx.select();
@@ -388,7 +451,10 @@ export function openGamesAndApps(letter) {
     if (done) return;
     done = true;
     off();
+    // Back to Storage: its page comes back in (a moment later) and grows back from the row.
     document.body.classList.remove('ga-open');
+    document.body.classList.add('ga-back');
+    setTimeout(() => document.body.classList.remove('ga-back'), 500);
     ctl.close();
   }
 

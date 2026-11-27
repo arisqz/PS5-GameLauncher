@@ -128,8 +128,8 @@ export function specialArt(kind) {
   if (kind === 'library') {
     return h('div', { class: 'tile-art special library-art', html: icon('library') });
   }
-  if (kind === 'store') {
-    return h('div', { class: 'tile-art special store-art', html: icon('bag') });
+  if (kind === 'explore') {
+    return h('div', { class: 'tile-art special explore-art', html: icon('explore') });
   }
   if (kind === 'media') {
     return h('div', { class: 'tile-art special media-art', html: icon('music') });

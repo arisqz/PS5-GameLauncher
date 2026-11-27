@@ -829,33 +829,76 @@
 }
 
 /* Settings › Storage › Games and Apps (PS5 "Items You Can Delete") -------- */
+/* Into Games and Apps and back, as between Settings' pages (see settings.css):
+   Storage fades (0.2 s) and shrinks to 0.97 about the chosen row; 0.11 s in,
+   Games and Apps fades in (0.23 s) and grows from 0.97 about it (0.32 s).
+   The titles only crossfade. Going back is the same the other way round. */
 .sel-overlay.ga-overlay {
   background: none;
+  transition: opacity calc(0.23s * var(--spd)) var(--zoom-fade-ease) calc(0.11s * var(--spd));
 }
 
-.settings-view > * {
-  transition: opacity 0.25s var(--ease);
+.sel-overlay.ga-overlay.closing {
+  transition: opacity calc(0.2s * var(--spd)) var(--zoom-out-ease);
 }
 
-body.ga-open .settings-view > :not(.set-bg) {
+.ga-body {
+  position: absolute;
+  inset: 0;
+  scale: 0.97;
+  transition: scale calc(0.22s * var(--spd)) var(--zoom-out-ease);
+}
+
+.ga-overlay.open .ga-body {
+  scale: 1;
+  transition: scale calc(0.32s * var(--spd)) var(--zoom-in-ease) calc(0.11s * var(--spd));
+}
+
+body.ga-open .settings-view .set-page {
   opacity: 0;
+  scale: 0.97;
+  pointer-events: none;
+  transition: opacity calc(0.2s * var(--spd)) var(--zoom-out-ease), scale calc(0.22s * var(--spd)) var(--zoom-out-ease);
 }
+
+body.ga-back .settings-view .set-page {
+  transition: opacity calc(0.23s * var(--spd)) var(--zoom-fade-ease) calc(0.11s * var(--spd)), scale calc(0.32s * var(--spd)) var(--zoom-in-ease) calc(0.11s * var(--spd));
+}
+
+/* The drives, as the PS5's "Items You Can Delete / Move" tabs and Settings'
+   own tabs: a frame around the focused one, no fill. */
 .ga-tabs {
   position: absolute;
   top: 18rem;
   left: 16.8rem;
   display: flex;
-  gap: 2.4rem;
+  gap: 0.4rem;
 }
 
 .ga-tab {
-  font-size: 2.9rem;
-  border: 0.2rem solid transparent;
+  position: relative;
+  height: 8.6rem;
+  padding: 0 3.1rem;
+  display: flex;
+  align-items: center;
+  font-size: 3rem;
+  font-weight: 300;
+  white-space: nowrap;
+  color: var(--text-4);
+  border-radius: 1rem;
+  --fx-r: 1rem;
+  transition: color 0.2s;
 }
 
-.ga-tab.active {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.55);
+.ga-tab.active,
+.ga-tab.focused {
+  color: #fff;
+}
+
+/* Another drive: its games go at once and fade in 0.11 s later over 0.21 s. */
+.ga-list.swap > *,
+.ga-side.swap .ga-meter {
+  animation: listIn 0.21s linear 0.11s both;
 }
 
 .ga-sortrow {
