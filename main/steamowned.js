@@ -8,6 +8,8 @@
 //    own userdata\<account>\config\localconfig.vdf.
 //  - appcache\appinfo.vdf: name, type (game, demo, DLC, tool…), supported
 //    systems, install folder and depot sizes of every app the client knows.
+//    Since late 2026 Steam splits it into 256 shards, appcache\appinfo\
+//    appinfo_00.vdf … appinfo_ff.vdf (format 42), and deletes appinfo.vdf.
 //
 // Both are binary KeyValues. The games among the licensed apps that have no
 // appmanifest (not installed) become library entries that can be downloaded.
@@ -70,8 +72,9 @@ function readPackages(buf) {
   return out;
 }
 
-/** Calls fn(id, appinfo) for the apps in `wanted` (a Set of numbers), from appinfo.vdf (format 28 / 29). */
+/** Calls fn(id, appinfo) for the apps in `wanted` (a Set of numbers), from appinfo.vdf (format 28 / 29) or one shard (format 2A). */
 function eachApp(buf, wanted, fn) {
+  if (buf.readUInt32LE(0) === 0x0756442a) return eachShardApp(buf, wanted, fn);
   const magic = buf.readUInt32LE(0);
   let strings = null;
   let start = 8;
@@ -104,6 +107,83 @@ function eachApp(buf, wanted, fn) {
     }
     r.pos = end;
   }
+}
+
+/**
+ * One appinfo shard (format 42, see github.com/xPaw/SteamAppInfo): a 44-byte
+ * header, an index of apps, the shard's string table, then each app's data
+ * (a 20-byte SHA-1 and its binary KeyValues, keys from the string table).
+ */
+function eachShardApp(buf, wanted, fn) {
+  // magic, universe, shard index, shard count, then:
+  const count = buf.readUInt32LE(16);
+  const indexSize = buf.readUInt32LE(20);
+  const stringCount = buf.readUInt32LE(24);
+  const tableSize = buf.readUInt32LE(28);
+  const index = 44;
+  const strings = new Array(stringCount);
+  for (let i = 0, p = index + indexSize; i < stringCount; i++) {
+    const e = buf.indexOf(0, p);
+    strings[i] = buf.toString('utf8', p, e);
+    p = e + 1;
+  }
+  const data = index + indexSize + tableSize;
+  const r = reader(buf, 0, strings);
+  for (let i = 0, p = index; i < count; i++) {
+    const id = buf.readUInt32LE(p);
+    const offset = buf.readUInt32LE(p + 4);
+    const summary = buf.readUInt32LE(p + 12);
+    p += 16 + summary;
+    if (!wanted.has(id)) continue;
+    r.pos = data + offset + 20; // binary SHA-1
+    try {
+      const kv = r.kv();
+      fn(id, kv.appinfo || Object.values(kv)[0] || {});
+    } catch {}
+  }
+}
+
+/** The shard an app's info is in: low byte of the MurmurHash3 finalizer of its id. */
+function shardOf(appid) {
+  let h = appid >>> 0;
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return (h & 0xff).toString(16).padStart(2, '0');
+}
+
+/**
+ * Calls fn(id, appinfo) for the apps in `wanted`, from the shards when Steam
+ * has them (only the shards those apps are in), else from appinfo.vdf.
+ */
+async function readApps(steamPath, wanted, fn) {
+  const cache = path.join(steamPath, 'appcache');
+  const dir = path.join(cache, 'appinfo');
+  let shards = null;
+  try {
+    shards = (await fsp.readdir(dir)).filter((f) => /^appinfo_[0-9a-f]{2}\.vdf$/i.test(f));
+  } catch {}
+  if (!shards || !shards.length) return eachApp(await fsp.readFile(path.join(cache, 'appinfo.vdf')), wanted, fn);
+  const need = new Set([...wanted].map(shardOf));
+  const seen = new Set();
+  const read = async (list, ids) => {
+    for (const f of list) {
+      let buf;
+      try {
+        buf = await fsp.readFile(path.join(dir, f));
+      } catch {
+        continue;
+      }
+      eachApp(buf, ids, (id, a) => (seen.add(id), fn(id, a)));
+    }
+  };
+  const first = shards.filter((f) => need.has(f.slice(8, 10).toLowerCase()));
+  await read(first, wanted);
+  // Not where the hash says (another client build mapping them differently): look in the other shards too.
+  const left = new Set([...wanted].filter((id) => !seen.has(id)));
+  if (left.size) await read(shards.filter((f) => !first.includes(f)), left);
 }
 
 /* Accounts -------------------------------------------------------------- */
@@ -161,7 +241,7 @@ const NOT_GAMES = /\b(test server|experimental server|public test|dedicated serv
  */
 async function ownedNotInstalled(steamPath, installed, { exclude = () => false } = {}) {
   const cache = path.join(steamPath, 'appcache');
-  const [pk, ai] = await Promise.all([fsp.readFile(path.join(cache, 'packageinfo.vdf')), fsp.readFile(path.join(cache, 'appinfo.vdf'))]);
+  const pk = await fsp.readFile(path.join(cache, 'packageinfo.vdf'));
   const owned = new Set();
   for (const [id, apps] of readPackages(pk)) if (id !== 0) for (const a of apps) owned.add(a);
   // Several accounts on this PC share the cache: leave out what only another
@@ -179,7 +259,7 @@ async function ownedNotInstalled(steamPath, installed, { exclude = () => false }
     }
   }
   const out = [];
-  eachApp(ai, owned, (id, a) => {
+  await readApps(steamPath, owned, (id, a) => {
     const c = a.common || {};
     const type = String(c.type || '').toLowerCase();
     if ((type !== 'game' && type !== 'demo') || !c.name) return;
@@ -193,9 +273,8 @@ async function ownedNotInstalled(steamPath, installed, { exclude = () => false }
 
 /** What installing a game needs: its install folder and sizes (Windows, public branch). */
 async function appDetails(steamPath, appid) {
-  const buf = await fsp.readFile(path.join(steamPath, 'appcache', 'appinfo.vdf'));
   let found = null;
-  eachApp(buf, new Set([Number(appid)]), (_id, a) => (found = a));
+  await readApps(steamPath, new Set([Number(appid)]), (_id, a) => (found = a));
   if (!found) return null;
   const c = found.common || {};
   let size = 0;

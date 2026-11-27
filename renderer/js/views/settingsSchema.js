@@ -860,6 +860,9 @@ export function buildSchema(router) {
                 ? t(state.info.steam.owned ? '{n} installed · {m} to download' : '{n} installed', { n: state.info.steam.count, m: state.info.steam.owned })
                 : state.settings.scanSteam ? 'Not found' : 'Off',
             },
+            state.info.steam && state.info.steam.ownedError && state.settings.steamOwned !== false
+              ? { type: 'note', label: t('Couldn’t read the Steam games you own that aren’t installed: {e}', { e: state.info.steam.ownedError }) }
+              : null,
             { type: 'info', label: 'Epic Games', value: state.info.epic ? 'Found' : state.settings.scanEpic ? 'Not found' : 'Off' },
             { type: 'info', label: 'Xbox', value: state.info.xbox ? 'Found' : state.settings.scanXbox !== false ? 'Not found' : 'Off' },
             { type: 'info', label: 'Ubisoft Connect', value: state.info.ubisoft ? 'Found' : state.settings.scanUbisoft !== false ? 'Not found' : 'Off' },

@@ -100,7 +100,7 @@ class Library {
     if (s.scanSteam) {
       try {
         const steam = await scanner.scanSteam({ owned: s.steamOwned !== false });
-        this.steamInfo = steam.found ? { path: steam.steamPath, persona: steam.persona, count: steam.installedCount, owned: steam.games.length - steam.installedCount } : null;
+        this.steamInfo = steam.found ? { path: steam.steamPath, persona: steam.persona, count: steam.installedCount, owned: steam.games.length - steam.installedCount, ownedError: steam.ownedError } : null;
         found.push(...steam.games);
       } catch (err) {
         console.warn('[scan] steam failed', err);
