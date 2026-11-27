@@ -2104,9 +2104,14 @@ body[data-input="mouse"] .fb-crumb:hover {
   text-align: left;
 }
 
-/* The ring a little taller than the option, as on the PS5. */
+/* The ring a little taller than the option, as on the PS5, and the glint
+   filling it as far as it does in other rows (just inside the ring). */
 .psel-item.fx-in::before {
   inset: -0.38rem 0;
+}
+
+.psel-item.fx-in::after {
+  inset: calc(var(--fx-w) + 0.15rem - 0.38rem) calc(var(--fx-w) + 0.15rem);
 }
 
 .psel-overlay:not(.ready) .psel-item::before,

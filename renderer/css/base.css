@@ -656,37 +656,40 @@ html.windowed .boot {
 /* ------------------------------------------------------------------ */
 /* Toggle switch (PS5 style)                                           */
 /* ------------------------------------------------------------------ */
+/* Measured from a PS5 screenshot (its quick menu, at 1080p): a flat pill
+   6.34 x 3.17rem, 12% white over the card; off, the knob is only a ring,
+   2.6rem across, its line 0.24rem and ~32% white, 0.29rem in from the ends.
+   On: the knob moves to the other end and fills white. */
 .switch {
   position: relative;
   flex: none;
-  width: 6.8rem;
-  height: 3.8rem;
-  border-radius: 1.9rem;
-  background: linear-gradient(180deg, #24272d, #2f3239);
-  box-shadow: inset 0 0 0 0.16rem rgba(255, 255, 255, 0.16), inset 0 0.3rem 0.6rem rgba(0, 0, 0, 0.45);
-  transition: background 0.25s var(--ease), box-shadow 0.25s var(--ease);
+  width: 6.34rem;
+  height: 3.17rem;
+  border-radius: 1.585rem;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background 0.2s var(--ease);
 }
 
 .switch i {
   position: absolute;
-  top: 0.45rem;
-  left: 0.45rem;
-  width: 2.9rem;
-  height: 2.9rem;
+  top: 0.285rem;
+  left: 0.285rem;
+  width: 2.6rem;
+  height: 2.6rem;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 32%, #9a9da4, #6e7178 60%, #55585f);
-  box-shadow: 0 0 0 0.28rem #1c1e23, 0 0.2rem 0.6rem rgba(0, 0, 0, 0.55);
-  transition: transform 0.3s var(--ease-out), background 0.25s var(--ease);
+  border: 0.24rem solid rgba(255, 255, 255, 0.32);
+  background: transparent;
+  transition: transform 0.3s var(--ease-out), background 0.2s var(--ease), border-color 0.2s var(--ease);
 }
 
 .switch.on {
-  background: linear-gradient(180deg, #2c2f36, #3a3e46);
-  box-shadow: inset 0 0 0 0.16rem rgba(255, 255, 255, 0.28), inset 0 0.3rem 0.6rem rgba(0, 0, 0, 0.35);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .switch.on i {
-  transform: translateX(2.9rem);
-  background: radial-gradient(circle at 38% 32%, #ffffff, #e2e3e7 55%, #b9bcc3);
+  transform: translateX(3.17rem);
+  border-color: #fff;
+  background: #fff;
 }
 
 /* ------------------------------------------------------------------ */

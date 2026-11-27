@@ -1831,6 +1831,22 @@
   opacity: 0.35;
 }
 
+/* Its card open with nothing in it to choose (no notifications, say), so the
+   focus stays on the control: it shows as open (white, the dot under it), as
+   the others do with their card open, not as a lit button. */
+.qm.panel-open .qm-btn.active.focused {
+  --qm-disc: 0;
+  --qm-indicator-shift: 0rem;
+  color: #fff;
+  box-shadow: none;
+  transform: none;
+}
+
+.qm.panel-open .qm-btn.active.focused::before,
+.qm.panel-open .qm-btn.active.focused::after {
+  opacity: 0 !important;
+}
+
 /* Customize: the controls that are always there (no checkbox) are greyed, as on the PS5. */
 .qm.customizing .qm-btn:not(:has(.qm-check)) .qm-ic {
   opacity: 0.45;

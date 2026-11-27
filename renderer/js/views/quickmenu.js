@@ -20,6 +20,7 @@ import { statusText as dlStatus, progressOf, fmtLeft, pulsing } from '../ui/down
 import {
   sys,
   watchMedia,
+  pollMedia,
   mediaPosition,
   mediaCommand,
   seekLocal,
@@ -117,6 +118,14 @@ export class QuickMenu {
     this.onClosed = null;
     this.ctl = null;
     this.customizing = false;
+    // What's playing is only asked for while the menu is open, so on its first
+    // open after starting the launcher the media card arrived a moment late and
+    // the cards were built twice as they came in. Ask once early, and again
+    // whenever the launcher comes back to the front.
+    if (!overlay) {
+      setTimeout(() => !this.ctl && pollMedia(), 2500);
+      document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && !this.ctl && pollMedia());
+    }
     on('running', () => this.ctl && !this.customizing && !this.panel && this.refreshBar());
     on('settings', (k) => (k === null || k === 'qmHidden') && this.ctl && !this.customizing && !this.panel && this.refreshBar());
     on('notifications', () => this.ctl && this.updateBadge());
@@ -440,7 +449,16 @@ export class QuickMenu {
     return cards.slice(0, 4);
   }
 
+  /** What a card shows: the same means its element can stay as it is. */
+  cardSig1(c) {
+    const st = party.state;
+    const who = c.party && st && st.members ? st.members.map((m) => `${m.id}${m.speaking ? '*' : ''}`).join(',') : '';
+    return [c.media ? 'media' : c.party ? 'party' : c.download ? `dl${c.download}` : c.capture ? 'capture' : c.playing ? 'playing' : 'card', c.cap, c.title, c.sub, c.img, c.logo, c.tile ? c.tile.id : '', c.icon, c.media ? sys.art || '' : '', who].join('\u0001');
+  }
+
   renderCards(animate) {
+    // animate: the menu is opening (everything built afresh).
+    const fresh = animate;
     const keep = this.cardNav ? this.cardNav.index : 0;
     const wasFocused = this.zone === 'cards';
     // Rebuilt while the menu is still coming in (on the first open, a card's
@@ -450,8 +468,18 @@ export class QuickMenu {
     if (animate) this.openedAt = performance.now();
     else if (since < 0.8) animate = true;
     const lag = animate && this.openedAt ? (performance.now() - this.openedAt) / 1000 : 0;
+    // On a rebuild, a card that hasn't changed keeps its element: no picture
+    // loading again, no animation starting over (only the new ones come in).
+    const old = new Map();
+    if (!fresh) for (const el of this.cardRow.children) if (el._sig) old.set(el._sig, el);
     this.cards = this.cardDefs();
     const cardEls = this.cards.map((c, i) => {
+      const sig = this.cardSig1(c);
+      const kept = old.get(sig);
+      if (kept) {
+        old.delete(sig);
+        return kept;
+      }
       let img;
       if (c.party) {
         const st = party.state;
@@ -484,13 +512,14 @@ export class QuickMenu {
         );
       }
       if (c.download) img.append(h('div', { class: 'qc-dl-bar' }, h('i')));
-      return h(
+      const at = () => (this.cardNav ? this.cardNav.els.indexOf(el) : -1);
+      const el = h(
         'button',
         {
           class: `qm-card fx${c.media ? ' media' : ''}${c.playing ? ' playing' : ''}${c.download ? ' download' : ''}${c.capture ? ' capture' : ''}${animate ? ' anim' : ''}`,
           style: { animationDelay: `${(0.06 + i * 0.05 - lag).toFixed(3)}s` },
-          onmouseenter: () => mouseActive() && this.focus('cards', i, true),
-          onclick: () => this.activateCard(i),
+          onmouseenter: () => mouseActive() && at() >= 0 && this.focus('cards', at(), true),
+          onclick: () => at() >= 0 && this.activateCard(at()),
         },
         img,
         h(
@@ -501,9 +530,17 @@ export class QuickMenu {
           c.sub ? h('div', { class: 'qc-sub', text: t(c.sub) }) : null
         )
       );
+      el._sig = sig;
+      return el;
     });
-    this.cardRow.innerHTML = '';
-    this.cardRow.append(...cardEls);
+    // Into place without moving the cards that stay (moving one would restart its animation).
+    for (const el of old.values()) el.remove();
+    cardEls.forEach((el, i) => {
+      el.classList.remove('focused');
+      const here = this.cardRow.children[i];
+      if (here !== el) this.cardRow.insertBefore(el, here || null);
+    });
+    while (this.cardRow.children.length > cardEls.length) this.cardRow.lastElementChild.remove();
     this.cardNav = new FocusList(cardEls, { index: Math.min(keep, cardEls.length - 1) });
     if (!wasFocused) this.cardNav.blur();
     this.layoutCards();
