@@ -260,6 +260,10 @@ function updateItems() {
       valueClass: s && s.status === 'none' ? 'ok' : '',
       disabled: !!busy,
       run: () => checkUpdate(),
+      desc:
+        s && !s.installable
+          ? 'Updates come from the Releases page on GitHub. This copy runs from the zip, so a new version is downloaded from there and unpacked over it.'
+          : 'Updates come from the Releases page on GitHub. To install one, the launcher closes, the update installs in the background and the launcher starts again. Your settings, library and captures stay.',
     },
   ];
   if (l && (s.status === 'available' || s.status === 'downloading' || s.status === 'error')) {
@@ -290,15 +294,7 @@ function updateItems() {
       run: () => infoDialog({ title: l.name || l.version, html: l.notes.split('\n').map((line) => `<p>${line.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c])}</p>`).join('') }),
     });
   }
-  items.push(
-    onOff('autoUpdateCheck', 'Check for Updates Automatically'),
-    {
-      type: 'note',
-      label: s && !s.installable
-        ? 'Updates come from the Releases page on GitHub. This copy runs from the zip, so a new version is downloaded from there and unpacked over it.'
-        : 'Updates come from the Releases page on GitHub. To install one, the launcher closes, the update installs in the background and the launcher starts again. Your settings, library and captures stay.',
-    }
-  );
+  items.push(onOff('autoUpdateCheck', 'Check for Updates Automatically'));
   return items;
 }
 
@@ -454,8 +450,7 @@ function passthroughItems() {
     }
   }
   return [
-    { type: 'info', label: 'Controller Passthrough', value, valueClass: cls },
-    note ? { type: 'note', label: note } : null,
+    { type: 'info', label: 'Controller Passthrough', value, valueClass: cls, desc: note },
     st && st.enabled && st.xbox ? { type: 'note', label: 'Xbox controllers: games that read them through XInput get a virtual Xbox controller that goes quiet while a menu is open. Games using Windows.Gaming.Input or GameInput still see your Xbox controller (Windows doesn’t let it be hidden from them), but they ignore it while a menu is in front. A game that was already running when this turned on keeps your Xbox controller until you restart it.' } : null,
     {
       type: 'choice',
@@ -466,8 +461,8 @@ function passthroughItems() {
         { value: 'dualshock4', label: 'DualShock 4' },
         { value: 'xbox360', label: 'Xbox Controller' },
       ],
+      desc: 'A game can have its own: Options › Emulated Controller on the game.',
     },
-    { type: 'note', label: 'A game can have its own: Options › Emulated Controller on the game.' },
   ];
 }
 
@@ -835,9 +830,14 @@ export function buildSchema(router) {
               },
             })),
             (state.settings.folders || []).length ? null : { type: 'info', label: 'No folders added yet', value: '' },
-            { type: 'action', label: 'Add Folder…', icon: 'folderPlus', run: () => addGameFolder() },
+            {
+              type: 'action',
+              label: 'Add Folder…',
+              icon: 'folderPlus',
+              run: () => addGameFolder(),
+              desc: 'Shortcuts (.lnk, .url), executables and sub-folders with installed games are detected. You can also drag and drop shortcuts onto the launcher.',
+            },
             { type: 'action', label: 'Add Games from Files…', icon: 'file', run: () => addGameFiles() },
-            { type: 'note', label: 'Shortcuts (.lnk, .url), executables and sub-folders with installed games are detected. You can also drag and drop shortcuts onto the launcher.' },
           ],
         },
         { label: 'Emulators', items: emulatorItems, onEnter: () => loadEmulators() },
@@ -1010,11 +1010,16 @@ export function buildSchema(router) {
             if (sys.displays === null) return [{ type: 'info', label: 'Looking for displays…', value: '' }];
             if (!sys.displays.length) {
               return [
-                { type: 'info', label: 'Brightness control', value: 'Not supported' },
-                { type: 'note', label: 'No display answered over DDC/CI. Turn on “DDC/CI” in your monitor’s on-screen menu, then reopen this page.' },
+                {
+                  type: 'info',
+                  label: 'Brightness control',
+                  value: 'Not supported',
+                  desc: 'No display answered over DDC/CI. Turn on “DDC/CI” in your monitor’s on-screen menu, then reopen this page.',
+                },
               ];
             }
             const many = sys.displays.length > 1;
+            const ddc = 'Brightness is set on the monitor itself over DDC/CI, the same as its own buttons.';
             return [
               many
                 ? {
@@ -1027,6 +1032,7 @@ export function buildSchema(router) {
                     unit: '%',
                     get: () => Math.round(sys.displays.reduce((a, d) => a + d.percent, 0) / sys.displays.length),
                     set: (v) => setBrightness(-1, v),
+                    desc: ddc,
                   }
                 : null,
               ...sys.displays.map((d, i) => ({
@@ -1039,8 +1045,8 @@ export function buildSchema(router) {
                 unit: '%',
                 get: () => (sys.displays[i] ? sys.displays[i].percent : 0),
                 set: (v) => setBrightness(i, v),
+                desc: ddc,
               })),
-              { type: 'note', label: 'Brightness is set on the monitor itself over DDC/CI, the same as its own buttons.' },
             ];
           },
         },
@@ -1058,17 +1064,20 @@ export function buildSchema(router) {
             sys.nightLight === null
               ? null
               : { type: 'toggle', icon: 'nightLight', label: 'Night Light', get: () => !!sys.nightLight, set: (v) => setNightLight(v) },
-            onOff('fullscreen', 'Full Screen'),
+            onOff('fullscreen', 'Full Screen', 'Press F11 at any time to toggle full screen.'),
             onOff('hardwareAcceleration', 'Hardware Acceleration', 'Use GPU acceleration when available. Fully close and reopen the launcher after changing this setting.'),
-            { type: 'action', label: 'Launcher GPU', run: chooseLauncherGpu },
-            { type: 'note', label: 'Fully close and reopen the launcher after changing Hardware Acceleration or Launcher GPU. Windows selects the adapter for each GPU preference.' },
+            {
+              type: 'action',
+              label: 'Launcher GPU',
+              run: chooseLauncherGpu,
+              desc: 'Fully close and reopen the launcher after changing Hardware Acceleration or Launcher GPU. Windows selects the adapter for each GPU preference.',
+            },
             {
               type: 'choice',
               key: 'uiScale',
               label: 'Interface Size',
               options: [80, 90, 100, 110, 125].map((n) => ({ value: n, label: `${n}%` })),
             },
-            { type: 'note', label: 'Press F11 at any time to toggle full screen.' },
           ],
         },
         {
@@ -1146,8 +1155,14 @@ export function buildSchema(router) {
         {
           label: 'Language and Font',
           items: () => [
-            { type: 'choice', key: 'language', label: 'Language', icon: 'globe', options: LANGUAGES },
-            { type: 'note', label: 'The interface reloads in the new language. Game names and descriptions stay as they come from the store.' },
+            {
+              type: 'choice',
+              key: 'language',
+              label: 'Language',
+              icon: 'globe',
+              options: LANGUAGES,
+              desc: 'The interface reloads in the new language. Game names and descriptions stay as they come from the store.',
+            },
             {
               type: 'choice',
               key: 'font',
@@ -1171,9 +1186,9 @@ export function buildSchema(router) {
         {
           label: 'In-Game Overlay',
           items: () => [
-            onOff('overlay', 'Quick Menu Over Games'),
+            onOff('overlay', 'Quick Menu Over Games', 'Press the Guide / PS button while playing to open the quick menu on top of the game. It is a separate window, so nothing is injected into the game. It shows over borderless and most full-screen games; games running in exclusive full screen may minimize while it is open.'),
             onOff('overlayHotkey', 'Keyboard Shortcut (Ctrl+Alt+Home)'),
-            onOff('pauseGames', 'Pause Game While Menus Are Open'),
+            onOff('pauseGames', 'Pause Game While Menus Are Open', 'Pausing keeps your button presses from reaching the game while the quick menu or home screen is in front. Games with anti-cheat are never paused (nothing touches them), and neither are games connected to a server, since pausing would disconnect them. Change it per game in its Options › Pause in Menus.'),
             {
               type: 'toggle',
               label: 'Block Controller in Games While Menus Are Open',
@@ -1185,16 +1200,6 @@ export function buildSchema(router) {
               },
             },
             ...passthroughItems(),
-            {
-              type: 'note',
-              label:
-                'Pausing keeps your button presses from reaching the game while the quick menu or home screen is in front. Games with anti-cheat are never paused (nothing touches them), and neither are games connected to a server, since pausing would disconnect them. Change it per game in its Options › Pause in Menus.',
-            },
-            {
-              type: 'note',
-              label:
-                'Press the Guide / PS button while playing to open the quick menu on top of the game. It is a separate window, so nothing is injected into the game. It shows over borderless and most full-screen games; games running in exclusive full screen may minimize while it is open.',
-            },
           ],
         },
         {
@@ -1211,8 +1216,7 @@ export function buildSchema(router) {
               ],
             },
             onOff('restoreOnExit', 'Return to Launcher When Game Closes'),
-            onOff('preferDirect', 'Start Games Directly'),
-            { type: 'note', label: 'Xbox games always start directly, without the Xbox app. Steam starts hidden in the tray and Epic in silent mode, so no store window opens. With Start Games Directly on, Epic games that run offline start from their own executable without the Epic launcher. Online games still need their store for sign-in. Change it per game in its Options › Launch Method.' },
+            onOff('preferDirect', 'Start Games Directly', 'Xbox games always start directly, without the Xbox app. Steam starts hidden in the tray and Epic in silent mode, so no store window opens. With Start Games Directly on, Epic games that run offline start from their own executable without the Epic launcher. Online games still need their store for sign-in. Change it per game in its Options › Launch Method.'),
             { type: 'note', label: 'Play time is tracked for games started directly from an executable. Steam play time is read from your Steam client.' },
           ],
         },

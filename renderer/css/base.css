@@ -692,12 +692,19 @@ html.windowed .boot {
 /* ------------------------------------------------------------------ */
 /* Slider (PS5 style)                                                  */
 /* ------------------------------------------------------------------ */
+/* Measured from PS5 videos (1440p, in rem): a flat track 0.38 thick, its
+   filled part ~68% white and the rest ~16%; a flat grey knob (#cdcdcd) 1.5
+   across. While it's being moved (.adjusting, see ui/psselect.js and the quick
+   menu) the knob turns white and grows to 2.2 in 0.13 s with a soft glow; a
+   moment later a grey ring, 3.05 across, settles round it. .adjusting can be
+   on the slider or on its row. */
 .ps-slider {
   --p: 0.5;
-  --knob: 2.8rem;
+  --knob: 1.5rem;
+  --ks: 0.682; /* the knob's size at rest against its moving size: 1.5 / 2.2 */
   position: relative;
   display: block;
-  height: calc(var(--knob) + 0.8rem);
+  height: 3.4rem;
   min-width: 12rem;
 }
 
@@ -706,11 +713,10 @@ html.windowed .boot {
   left: 0;
   right: 0;
   top: 50%;
-  height: 0.7rem;
+  height: 0.38rem;
   transform: translateY(-50%);
-  border-radius: 0.35rem;
-  background: rgba(255, 255, 255, 0.13);
-  box-shadow: 0 0 0 0.14rem rgba(10, 11, 14, 0.7), inset 0 0.1rem 0.2rem rgba(0, 0, 0, 0.5);
+  border-radius: 0.19rem;
+  background: rgba(255, 255, 255, 0.16);
   overflow: hidden;
 }
 
@@ -721,29 +727,70 @@ html.windowed .boot {
   bottom: 0;
   width: calc(var(--knob) / 2 + (100% - var(--knob)) * var(--p));
   border-radius: inherit;
-  background: linear-gradient(180deg, #fbfcfd, #c7cad0);
+  background: rgba(255, 255, 255, 0.66);
   transition: width 0.12s var(--ease);
 }
 
+/* The knob is drawn at its moving size (2.2rem) and scaled down at rest, so
+   growing is a transform. */
 .pss-knob {
   position: absolute;
   top: 50%;
-  left: calc((100% - var(--knob)) * var(--p));
-  width: var(--knob);
-  height: var(--knob);
+  left: calc(var(--knob) / 2 + (100% - var(--knob)) * var(--p) - 1.1rem);
+  width: 2.2rem;
+  height: 2.2rem;
   border-radius: 50%;
-  transform: translateY(-50%);
-  background: radial-gradient(circle at 38% 32%, #ffffff, #dcdee2 55%, #aeb1b8);
-  box-shadow: 0 0 0 0.3rem #23262c, 0 0 0 0.42rem rgba(255, 255, 255, 0.14), 0 0.3rem 0.8rem rgba(0, 0, 0, 0.55);
-  transition: left 0.12s var(--ease);
+  translate: 0 -50%;
+  scale: var(--ks);
+  background: #cdcdcd;
+  transition: left 0.12s var(--ease), scale 0.07s var(--ease-out), background 0s;
+}
+
+/* The soft glow (::before) and the ring (::after), at the knob's moving size. */
+.pss-knob::before,
+.pss-knob::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0s;
+}
+
+.pss-knob::before {
+  inset: -0.75rem;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.55) 62%, rgba(255, 255, 255, 0.22) 74%, rgba(255, 255, 255, 0) 100%);
+}
+
+.pss-knob::after {
+  inset: -0.43rem;
+  border: 0.26rem solid rgba(220, 220, 226, 0.62);
+  box-shadow: 0 0 0.5rem rgba(255, 255, 255, 0.28), inset 0 0 0.35rem rgba(255, 255, 255, 0.2);
+}
+
+.adjusting .pss-knob {
+  scale: 1;
+  background: #fff;
+  transition: left 0.12s var(--ease), scale 0.13s cubic-bezier(0.24, 0.9, 0.4, 1), background 0s;
+}
+
+.adjusting .pss-knob::before {
+  opacity: 1;
+  transition: opacity 0.1s linear 0.03s;
+}
+
+.adjusting .pss-knob::after {
+  opacity: 1;
+  transition: opacity 0.12s linear 0.28s;
 }
 
 .ps-slider.thin {
-  --knob: 1.8rem;
+  --knob: 1.3rem;
+  --ks: 0.591;
 }
 
 .ps-slider.thin .pss-track {
-  height: 0.5rem;
+  height: 0.32rem;
 }
 
 .ps-slider.no-knob .pss-knob {

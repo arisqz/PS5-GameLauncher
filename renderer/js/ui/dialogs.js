@@ -12,6 +12,7 @@ import { mouseActive } from '../input.js';
 import { sliderHtml, setSlider, dragSlider } from './slider.js';
 import { t } from '../i18n.js';
 import { themePreview } from '../thememusic.js';
+import { selectMenu } from './psselect.js';
 
 /* ------------------------------------------------------------------ */
 /* Options menu                                                        */
@@ -23,6 +24,8 @@ import { themePreview } from '../thememusic.js';
  * Resolves with the chosen item (after running item.run) or null.
  */
 export function optionsMenu({ title = '', items, anchor = null, index = 0, side = 'right' }) {
+  // Picking one value for a settings row (a list with a tick): the PS5's drop-down instead.
+  if (anchor instanceof Element && anchor.classList.contains('set-item') && anchor.isConnected && items.some((it) => it.checked)) return selectMenu({ anchor, items, index });
   return new Promise((resolve) => {
     const list = h('div', { class: 'menu-list' });
     const panel = h('div', { class: 'menu-panel' }, title ? h('div', { class: 'menu-title', text: t(title) }) : null, list);

@@ -341,21 +341,45 @@ export class SettingsView {
     return true;
   }
 
+  /** desc: a line or two that opens under the row while it's focused (as on the PS5; css/settings.css). */
   itemHtml(d) {
-    return rowHtml(d);
+    const desc = typeof d.desc === 'function' ? d.desc() : d.desc;
+    return desc ? `<span class="si-head">${rowHtml(d)}</span><span class="si-desc"><span>${escapeHtml(t(desc))}</span></span>` : rowHtml(d);
+  }
+
+  /**
+   * How much taller each row is about to get (or shorter): descriptions open
+   * and close with a transition, so the scroll is worked out for where the
+   * rows will be once they have.
+   */
+  descGrowth() {
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 10;
+    const out = new Map();
+    for (const row of this.list.children) {
+      const d = row.querySelector(':scope > .si-desc');
+      if (!d) continue;
+      const now = d.offsetHeight + (parseFloat(getComputedStyle(d).marginTop) || 0);
+      const end = row.classList.contains('focused') ? d.firstElementChild.offsetHeight - 2.08 * rem : 0;
+      if (Math.abs(end - now) > 0.5) out.set(row, end - now);
+    }
+    return out;
   }
 
   scrollList(instant = false) {
     const el = this.listNav.current;
     const wrapH = this.listWrap.clientHeight;
-    const listH = this.list.scrollHeight;
+    const grow = this.descGrowth();
+    let listH = this.list.scrollHeight;
+    for (const g of grow.values()) listH += g;
     let y = 0;
     if (el && listH > wrapH) {
-      const top = el.offsetTop;
-      const center = top + el.offsetHeight / 2;
+      let top = el.offsetTop;
+      for (const [row, g] of grow) if (row.offsetTop < el.offsetTop) top += g;
+      const height = el.offsetHeight + (grow.get(el) || 0);
+      const center = top + height / 2;
       // Reading pages (the User Guide) only scroll as far as needed, so the
       // text above the buttons stays in view.
-      y = this.cat && this.cat.readable ? clamp(top + el.offsetHeight + 40 - wrapH, 0, listH - wrapH + 40) : clamp(center - wrapH * 0.42, 0, listH - wrapH + 40);
+      y = this.cat && this.cat.readable ? clamp(top + height + 40 - wrapH, 0, listH - wrapH + 40) : clamp(center - wrapH * 0.42, 0, listH - wrapH + 40);
     }
     if (instant) this.list.style.transition = 'none';
     this.list.style.transform = `translateY(${-y}px)`;

@@ -381,8 +381,7 @@
   text-overflow: ellipsis;
 }
 
-.qp-val,
-.qp-num {
+.qp-val {
   font-size: 2.1rem;
   color: var(--text-2);
 }
@@ -405,26 +404,12 @@
   color: var(--text-4);
 }
 
-/* Range rows: label line + slider */
-.qp-row.t-range {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.6rem;
-  padding-bottom: 1rem;
-}
-
-.qp-range-head {
-  display: flex;
-  align-items: center;
-  gap: 1.8rem;
-}
-
-.qp-range-head .qp-label {
-  flex: 1;
-}
-
+/* Range rows, as the PS5's Sound card: icon and name, the slider at the right
+   (23rem, measured), no number. */
 .qp-row.t-range .ps-slider {
-  margin: 0 0.4rem;
+  flex: none;
+  width: 23rem;
+  min-width: 0;
   cursor: pointer;
 }
 
@@ -1863,4 +1848,65 @@
 .qp-btn::before,
 .qm-btn::before {
   transform: none;
+}
+
+
+/* The quick menu's cards, as on the PS5 (measured from a PS5 screenshot of
+   its Sound card): a smooth fade from a light slate grey at the bottom-left
+   corner, rgb(41,43,47), through a bluer grey, to rgb(25,26,31) a little past
+   the middle of the card, which stays that colour to the top-right. Sized to
+   the card, so every card fades the same way. Moving a slider (.adjust-on,
+   quickmenu.js) flattens it to rgb(18,20,26) and dims everything but that row
+   to 47% in 0.15 s (from a PS5 video). */
+.qm-panel {
+  border-radius: 1.2rem;
+  background: radial-gradient(
+    ellipse farthest-corner at 3.2% 97.5%,
+    rgb(40.5, 43.4, 46.8) 0%,
+    rgb(40.2, 43, 46.2) 6%,
+    rgb(39.9, 42.6, 46) 10%,
+    rgb(39, 41.2, 45) 14%,
+    rgb(38.4, 39.6, 44.2) 18%,
+    rgb(37.5, 38.4, 42.5) 22%,
+    rgb(36.3, 36.9, 41.5) 26%,
+    rgb(34.4, 35.9, 40.4) 30%,
+    rgb(33, 34.1, 39.1) 34%,
+    rgb(31.2, 32.5, 37.4) 38%,
+    rgb(29.2, 31.4, 36.2) 42%,
+    rgb(27.8, 30.3, 35) 46%,
+    rgb(25.9, 28.6, 34) 50%,
+    rgb(24.6, 27.3, 32.3) 54%,
+    rgb(24.3, 26.4, 31.4) 58%,
+    rgb(24.6, 25.8, 30.9) 64%,
+    rgb(24.8, 25.9, 30.9) 100%
+  );
+  box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.55), inset 0 0 0 200rem rgba(18, 20, 26, 0);
+  transition: box-shadow 0.1s linear;
+}
+
+.qm-panel.adjust-on {
+  box-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.55), inset 0 0 0 200rem rgb(18, 20, 26);
+  transition: box-shadow 0.15s cubic-bezier(0.38, 0.55, 0.35, 1);
+}
+
+/* Back in 0.1 s (.adjust-off for a moment after). */
+.qm-panel.adjust-off .qp-head,
+.qm-panel.adjust-off .mp,
+.qm-panel.adjust-off .qp-row > * {
+  transition: opacity 0.1s linear;
+}
+
+.qm-panel.adjust-on .qp-head,
+.qm-panel.adjust-on .mp,
+.qm-panel.adjust-on .qp-row:not(.adjusting) > * {
+  opacity: 0.47;
+  transition: opacity 0.15s cubic-bezier(0.38, 0.55, 0.35, 1);
+}
+
+/* The row being moved shows no ring, only its knob. */
+.qp-row.adjusting.fx::before,
+.qp-row.adjusting.fx::after,
+.qp-row.adjusting > .fx-wave {
+  opacity: 0 !important;
+  transition: none !important;
 }

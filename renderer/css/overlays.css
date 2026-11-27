@@ -197,11 +197,16 @@
 }
 
 .slider-wrap .ps-slider {
-  --knob: 3.4rem;
+  --knob: 2.2rem;
+  --ks: 1;
+}
+
+.slider-wrap .pss-knob {
+  background: #fff;
 }
 
 .slider-wrap .pss-track {
-  height: 0.9rem;
+  height: 0.5rem;
 }
 
 .arrows {
@@ -1978,4 +1983,162 @@ body[data-input="mouse"] .fb-crumb:hover {
    moves on (base.css). */
 .dlg-btn::before {
   transform: none;
+}
+
+/* PS5 drop-down and slider rows (ui/psselect.js) --------------------------
+   Measured from PS5 videos at 1440p: the screen dims to half (0.2 s, settling
+   like the PS5's), all but the row's name and description, which are drawn
+   again above it (.psel-row). The options fade in evenly over 0.24 s, their
+   panel's grey a moment later, and the ring on the ticked one last. Leaving,
+   the panel goes at once and the screen lightens in 0.1 s. */
+.psel-dim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.38, 0.55, 0.35, 1);
+}
+
+.psel-overlay.open .psel-dim {
+  opacity: 1;
+}
+
+.psel-overlay.closing .psel-dim {
+  opacity: 0;
+  transition: opacity 0.1s linear;
+}
+
+.psel-overlay > .psel-row {
+  position: fixed;
+  margin: 0;
+  pointer-events: none;
+  background: none !important;
+  transition: none;
+}
+
+/* Its description stays open as it was on the row. */
+.psel-row > .si-desc {
+  height: auto;
+  margin-top: -2.08rem;
+  opacity: 1;
+  transition: none;
+}
+
+/* The value goes under the options. */
+.psel-overlay.is-select .psel-row .si-value,
+.psel-overlay.is-select .psel-row .si-chev {
+  opacity: 0;
+  transition: opacity 0.15s linear;
+}
+
+.psel-row .ps-slider {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* The row underneath keeps no ring while it's chosen from, and its content
+   hides under the copy (no doubled text should they part by a pixel). */
+.psel-src.fx::before,
+.psel-src.fx::after,
+.psel-src > .fx-wave {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+.psel-src > * {
+  visibility: hidden;
+}
+
+/* The panel: 41.5rem wide at least, square-ish corners, a flat dark grey a
+   little lighter on the left (#222429 to #17191d, measured). Options 6.67rem
+   apart, the text 7.36rem in, the tick before it. */
+.psel-panel {
+  position: fixed;
+  min-width: 41.5rem;
+  max-width: 72rem;
+  border-radius: 0.3rem;
+  isolation: isolate;
+}
+
+.psel-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #222429, #17191d);
+  opacity: 0;
+  transition: opacity 0.12s linear 0.1s;
+}
+
+/* (The padding is inside the scrolling list, so the ring round the first and
+   last options isn't cut off.) */
+.psel-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.55rem 0.28rem;
+  overflow: hidden auto;
+  scrollbar-width: none;
+  opacity: 0;
+  transition: opacity 0.24s linear;
+}
+
+.psel-overlay.open .psel-panel::before,
+.psel-overlay.open .psel-list {
+  opacity: 1;
+}
+
+.psel-overlay.closing .psel-panel {
+  visibility: hidden;
+}
+
+.psel-item {
+  --fx-r: 0.4rem;
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 6.67rem;
+  padding-right: 3.2rem;
+  font-size: 2.9rem;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* The ring a little taller than the option, as on the PS5. */
+.psel-item.fx-in::before {
+  inset: -0.38rem 0;
+}
+
+.psel-overlay:not(.ready) .psel-item::before,
+.psel-overlay:not(.ready) .psel-item::after {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+.psel-item.disabled {
+  opacity: 0.38;
+}
+
+.psel-item.danger .psel-label {
+  color: #ff9a9a;
+}
+
+.psel-check {
+  flex: none;
+  display: flex;
+  align-items: center;
+  width: 7.36rem;
+  padding-left: 2.75rem;
+  font-size: 2.5rem;
+}
+
+.psel-hint {
+  margin-left: auto;
+  padding-left: 2.4rem;
+  font-size: 2.2rem;
+  color: var(--text-3);
+}
+
+html.font-sst .psel-item {
+  font-size: 2.8rem;
 }

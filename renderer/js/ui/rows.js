@@ -7,6 +7,7 @@ import { icon } from '../icons.js';
 import { state, setSetting } from '../state.js';
 import { sfx } from '../sound.js';
 import { optionsMenu, textDialog, sliderDialog } from './dialogs.js';
+import { selectMenu, adjustSlider } from './psselect.js';
 import { sliderHtml } from './slider.js';
 import { t } from '../i18n.js';
 
@@ -58,13 +59,13 @@ export async function activateRow(d, el, rerender) {
       sfx.select();
       // get/set: a value that isn't a setting of its own (one encoder's settings, say).
       const cur = d.get ? d.get() : s[d.key];
-      const choice = await optionsMenu({
-        title: t(d.label),
+      const menu = {
         anchor: el,
-        side: 'below-right',
         index: Math.max(0, d.options.findIndex((o) => String(o.value) === String(cur))),
         items: d.options.map((o) => ({ label: t(o.label), hint: o.hint, value: o.value, checked: String(o.value) === String(cur) })),
-      });
+      };
+      // On a row: the PS5's drop-down beside it.
+      const choice = el && el.isConnected ? await selectMenu(menu) : await optionsMenu({ ...menu, title: t(d.label), side: 'below-right' });
       if (choice && String(choice.value) !== String(cur)) {
         if (d.set) await d.set(choice.value);
         else await setSetting(d.key, choice.value);
@@ -77,8 +78,12 @@ export async function activateRow(d, el, rerender) {
       const get = d.get || (() => s[d.key]);
       const set = d.set || ((nv) => setSetting(d.key, nv));
       const orig = get() ?? 0;
-      const v = await sliderDialog({ title: t(d.label), value: orig, min: d.min, max: d.max, step: d.step, unit: d.unit, onChange: (nv) => set(nv) });
-      if (v === null) await set(orig);
+      // On a row: moved in place, as on the PS5 (it takes effect as it moves).
+      if (el && el.isConnected) await adjustSlider({ anchor: el, value: orig, min: d.min, max: d.max, step: d.step, unit: d.unit, onChange: (nv) => set(nv) });
+      else {
+        const v = await sliderDialog({ title: t(d.label), value: orig, min: d.min, max: d.max, step: d.step, unit: d.unit, onChange: (nv) => set(nv) });
+        if (v === null) await set(orig);
+      }
       rerender();
       break;
     }

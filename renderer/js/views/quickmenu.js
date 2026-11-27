@@ -133,7 +133,13 @@ export class QuickMenu {
     on('media', () => this.ctl && this.onMedia());
     on('volume', () => this.ctl && this.refreshRows('sound'));
     on('outputs', () => this.ctl && this.refreshRows('sound'));
-    on('brightness', () => this.ctl && this.panelIs('display') && this.rebuildPanel());
+    on('brightness', () => {
+      if (!this.ctl || !this.panelIs('display')) return;
+      // A slider moved: its rows only (one being moved keeps its state). Displays found or lost: build it again.
+      const n = this.panel.rows.filter((r) => r.type === 'range').length;
+      if (n && sys.displays && n === sys.displays.length) this.panel.nav.els.forEach((el) => this.renderRow(el));
+      else this.rebuildPanel();
+    });
     on('nightlight', () => this.ctl && this.panelIs('display') && this.rebuildPanel());
     on('hdr', () => this.ctl && this.panelIs('display') && this.rebuildPanel());
     on('bluetooth', () => this.ctl && this.panelIs('bluetooth') && this.rebuildPanel());
@@ -675,6 +681,8 @@ export class QuickMenu {
   }
 
   applyFocus() {
+    // The focus left the slider being moved (the mouse, say): it's done.
+    if (this.adjusting && !(this.zone === 'panel' && this.panel && this.panel.nav.current === this.adjusting)) this.endAdjust(true);
     this.layoutCards();
     this.cardNav && this.cardNav.blur();
     this.barNav.blur();
@@ -733,6 +741,7 @@ export class QuickMenu {
   openPanel(i, { keepIndex = null } = {}) {
     const it = this.items[i];
     if (!it || !it.panel) return;
+    if (this.adjusting) this.endAdjust(true);
     const rebuild = keepIndex !== null && this.panel && this.panel.index === i;
     if (!rebuild && this.panel && this.panel.index === i) {
       this.closePanel();
@@ -873,6 +882,7 @@ export class QuickMenu {
   /** Play the exit animation of a panel element, then remove it. */
   dismissPanelEl(el) {
     if (!el || el._dismissed) return;
+    if (this.adjusting && el.contains(this.adjusting)) this.endAdjust(true);
     el._dismissed = true;
     el.classList.add('out');
     const done = () => el.remove();
@@ -1017,7 +1027,8 @@ export class QuickMenu {
     const val = typeof r.value === 'function' ? r.value() : r.value;
     if (r.type === 'range') {
       const ic = typeof r.icon === 'function' ? r.icon() : r.icon;
-      put(`<span class="qp-range-head">${ic ? `<span class="qp-ic">${icon(ic)}</span>` : ''}<span class="qp-label">${escapeHtml(t(r.label))}</span><span class="qp-num">${val}%</span></span>${sliderHtml((val / (r.max || 100)) * 100)}`);
+      // As on the PS5's Sound card: icon, name and the slider on one line.
+      put(`${ic ? `<span class="qp-ic">${icon(ic)}</span>` : ''}<span class="qp-text"><span class="qp-label">${escapeHtml(t(r.label))}</span></span>${sliderHtml((val / (r.max || 100)) * 100)}`);
       return;
     }
     let right = '';
@@ -1037,7 +1048,8 @@ export class QuickMenu {
       await r.toggle();
       this.renderRow(el);
     } else if (r.type === 'range') {
-      sfx.bump();
+      if (this.adjusting === el) this.endAdjust();
+      else this.startAdjust(el);
     } else if (r.type === 'buttons') {
       const b = r.buttons()[r.bi];
       if (!b || b.disabled) return sfx.bump();
@@ -1059,10 +1071,43 @@ export class QuickMenu {
     }
   }
 
+  /**
+   * Moving a slider, as on the PS5: ✕ on it and the rest of the card dims
+   * while its knob grows; ← → move it, ✕ or ○ ends it (css/quickmenu.css).
+   * Without ✕, ← → leave it as it is.
+   */
+  startAdjust(el) {
+    if (!this.panel || this.adjusting === el) return;
+    this.endAdjust(true);
+    this.adjusting = el;
+    sfx.select();
+    clearTimeout(this.adjustOffTimer);
+    this.panel.el.classList.remove('adjust-off');
+    this.panel.el.classList.add('adjust-on');
+    el.classList.add('adjusting');
+  }
+
+  endAdjust(quiet = false) {
+    const el = this.adjusting;
+    if (!el) return false;
+    this.adjusting = null;
+    el.classList.remove('adjusting');
+    const panel = el.closest('.qm-panel');
+    if (panel) {
+      panel.classList.remove('adjust-on');
+      panel.classList.add('adjust-off');
+      clearTimeout(this.adjustOffTimer);
+      this.adjustOffTimer = setTimeout(() => panel.classList.remove('adjust-off'), 150);
+    }
+    if (!quiet) sfx.back();
+    return true;
+  }
+
   adjustRow(delta) {
     const el = this.panel.nav.current;
     const r = el && el._row;
     if (!r) return false;
+    if (r.type === 'range' && this.adjusting !== el) return false;
     if (r.type === 'buttons') {
       const n = r.buttons().length;
       const next = r.bi + delta;
@@ -1889,6 +1934,13 @@ export class QuickMenu {
       else sfx.bump();
       return true;
     }
+    if (this.adjusting) {
+      if (!this.panel || !this.adjusting.isConnected || this.zone !== 'panel') this.endAdjust(true);
+      else if (action === 'confirm' || action === 'back') {
+        this.endAdjust();
+        return true;
+      } else if (action === 'up' || action === 'down' || action === 'options') this.endAdjust(true);
+    }
     if (action === 'options') {
       this.enterCustomize();
       return true;
@@ -1966,10 +2018,10 @@ export class QuickMenu {
     }
     if (this.zone === 'panel' && this.panel) {
       const nav = this.panel.nav;
-      // Left from the content goes to the Game Base's rail (sliders keep it, a row of buttons once at its first).
+      // Left from the content goes to the Game Base's rail (a slider being moved keeps it, a row of buttons once at its first).
       if (action === 'left' && this.panel.rail) {
         const r = nav.current && nav.current._row;
-        if (!r || (r.type !== 'range' && !(r.type === 'buttons' && r.bi > 0))) {
+        if (!r || (!(r.type === 'range' && this.adjusting === nav.current) && !(r.type === 'buttons' && r.bi > 0))) {
           this.zone = 'rail';
           sfx.move();
           this.applyFocus();

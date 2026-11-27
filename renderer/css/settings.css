@@ -290,6 +290,61 @@
   opacity: 0.4;
 }
 
+/* A row's description (settings.js itemHtml): only there while the row is
+   focused, as on the PS5. Measured from a PS5 video at 1440p: leaving a row,
+   its text goes at once; 0.06 s later that row closes as the new one opens
+   below its name (0.2 s, quick then settling), and the new text fades in
+   evenly over 0.23 s. The text sits 4.3rem under the name's middle, 3.17rem a
+   line, and the row ends 2.38rem below it. */
+/* (A block, not a flex column: Chromium doesn't animate a flex item's height to auto.) */
+.set-item:has(> .si-head) {
+  display: block;
+}
+
+.si-head {
+  display: flex;
+  align-items: center;
+  gap: 2.4rem;
+  min-height: 9.6rem;
+}
+
+.si-desc {
+  display: block;
+  height: 0;
+  margin-top: 0;
+  opacity: 0;
+  interpolate-size: allow-keywords;
+  font-size: 2.25rem;
+  line-height: 3.17rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: normal;
+  pointer-events: none;
+  transition:
+    height 0.2s cubic-bezier(0.24, 0.9, 0.4, 1) 0.06s,
+    margin-top 0.2s cubic-bezier(0.24, 0.9, 0.4, 1) 0.06s,
+    opacity 0s;
+}
+
+.si-desc > span {
+  display: block;
+  padding-bottom: 2.38rem;
+}
+
+.set-item.focused > .si-desc {
+  height: auto;
+  margin-top: -2.08rem;
+  opacity: 1;
+  transition:
+    height 0.2s cubic-bezier(0.24, 0.9, 0.4, 1) 0.06s,
+    margin-top 0.2s cubic-bezier(0.24, 0.9, 0.4, 1) 0.06s,
+    opacity 0.23s linear 0.07s;
+}
+
+body.reduce-motion .si-desc {
+  transition: none !important;
+}
+
 .si-label {
   flex: 1;
   display: flex;
@@ -346,6 +401,7 @@
   width: 34rem;
   gap: 2rem;
   max-width: none;
+  overflow: visible; /* the knob and its ring reach past the track's ends */
 }
 
 .si-range .ps-slider {
@@ -538,4 +594,15 @@
   height: 3.6rem;
   border-radius: 50%;
   margin-right: 1.2rem;
+}
+
+/* With the PlayStation font, rows set as on the PS5 (fitted to a PS5 video at
+   1440p, SST Light throughout): the name 2.8rem, the value and the
+   description 2.25rem. */
+html.font-sst .si-label {
+  font-size: 2.8rem;
+}
+
+html.font-sst .si-value {
+  font-size: 2.25rem;
 }

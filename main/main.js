@@ -159,7 +159,11 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // ParkableImagesToDisk: Chromium writes pictures that sat unused (the launcher
 // in the background during a game) out to disk, and reading one back held the
 // first frames that showed it again (traced: ~220 ms on a game's art).
-app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService,ParkableImagesToDisk');
+// WebAuth: no passkeys (Web Authentication). The launcher has no use for them,
+// and Discord's sign-in page in the setup asked Windows for one on its own,
+// which put up a Windows Security window over the launcher. Without it pages
+// see no PublicKeyCredential and sign in the usual way (see also guardWebviews).
+app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService,ParkableImagesToDisk,WebAuth');
 
 /*
  * The launcher's only <webview>s, both in the first-time setup:
@@ -214,6 +218,16 @@ function guardWebviews(contents) {
       return { action: 'deny' };
     });
     guest.session.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+    // Passkeys: a page can still ask for one without PublicKeyCredential (the
+    // switch above). DevTools' virtual authenticators take those requests in
+    // its place, and with none added they fail quietly: Windows never shows
+    // its passkey window for these pages.
+    try {
+      guest.debugger.attach('1.3');
+      guest.debugger.sendCommand('WebAuthn.enable', { enableUI: false }).catch(() => {});
+    } catch {
+      /* already attached (DevTools open on it) */
+    }
   });
 }
 
