@@ -278,10 +278,8 @@ export class HomeView {
       this.activateTile();
       return;
     }
-    // A mouse click already animates the tile growing into selection.
-    // Don't add the controller-focus pop on top of that movement.
     this.focusZone('carousel', null, true);
-    this.select(i, { pop: false });
+    this.select(i);
   }
 
   layout(instant = false) {
@@ -346,7 +344,7 @@ export class HomeView {
   /* Focus                                                             */
   /* ---------------------------------------------------------------- */
 
-  select(i, { sound = true, pop = true } = {}) {
+  select(i, { sound = true } = {}) {
     if (i < 0 || i >= this.items.length || i === this.sel) return false;
     this.sel = i;
     this.selByTab[this.tab] = this.items[i].key;
@@ -357,8 +355,6 @@ export class HomeView {
     this.hub.setItem(cur);
     this.hubKey = cur.key;
     this.restoreFocusVisual();
-    // Only deliberate non-mouse selection changes get the focus pop.
-    if (pop && this.zone === 'carousel') replayClass(this.tileEls.get(cur.key)?.firstElementChild, 'pop');
     this.updateHeroSoon();
     return true;
   }
@@ -368,7 +364,7 @@ export class HomeView {
       sfx.bump();
       rumble(0.3);
       const el = this.tileEls.get(this.items[this.sel]?.key);
-      // Edge feedback moves the outer tile; inner pop/entry animations keep running.
+      // Edge feedback moves the outer tile; inner entry/press animations keep running.
       bump(el, d < 0 ? 'left' : 'right');
     }
   }
@@ -384,10 +380,6 @@ export class HomeView {
     if (zone === 'widgets' && index !== null) this.hub.explore.set(index);
     if (changed && !fromMouse) sfx.move();
     this.restoreFocusVisual();
-    // Pop only when returning focus with keyboard/controller, not on mouse clicks.
-    if (changed && zone === 'carousel' && !fromMouse) {
-      replayClass(this.tileEls.get(this.items[this.sel]?.key)?.firstElementChild, 'pop');
-    }
   }
 
   restoreFocusVisual() {
@@ -472,8 +464,6 @@ export class HomeView {
     if (!it) return;
     const el = this.tileEls.get(it.key);
     const inner = el?.firstElementChild;
-    // The press must end at rest, not reveal a queued focus pop afterwards.
-    inner?.classList.remove('pop');
     replayClass(inner, 'press');
     // A game: what its main button says (Play, Continue, or Update when one is waiting).
     // Started from its cover: the launch screen comes out of the cover.
