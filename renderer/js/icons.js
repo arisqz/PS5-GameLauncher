@@ -140,9 +140,67 @@ const P = {
     '<mask id="clm-info"><rect width="24" height="24" fill="#fff"/><circle cx="12" cy="7.6" r="1.35" fill="#000"/><rect x="10.85" y="10.3" width="2.3" height="7" rx="1.1" fill="#000"/></mask><circle cx="12" cy="12" r="9.6" fill="currentColor" stroke="none" mask="url(#clm-info)"/>',
 };
 
+/* ------------------------------------------------------------------ */
+/* One stroke per icon                                                 */
+/* ------------------------------------------------------------------ */
+
+// Most icons are drawn in a see-through colour. Each line or shape was its
+// own element, so where two met or crossed (a music note's stem and head, a
+// magnifier's handle and lens) the colour was painted twice and showed as a
+// brighter spot. An icon's plain strokes are joined into one path, and one
+// path's stroke is painted once however it overlaps itself. Filled shapes,
+// masks and transformed parts are left as they are.
+
+const n = (v) => +(+v || 0).toFixed(3);
+const ellipse = (cx, cy, rx, ry) => `M${n(cx - rx)} ${cy}a${rx} ${ry} 0 1 0 ${n(2 * rx)} 0a${rx} ${ry} 0 1 0 ${n(-2 * rx)} 0z`;
+const PATH = {
+  // A path that starts with a relative move starts from 0,0.
+  path: (a) => (/^\s*m/.test(a.d) ? 'M0 0' : '') + a.d,
+  circle: (a) => ellipse(n(a.cx), n(a.cy), n(a.r), n(a.r)),
+  ellipse: (a) => ellipse(n(a.cx), n(a.cy), n(a.rx), n(a.ry)),
+  line: (a) => `M${n(a.x1)} ${n(a.y1)}L${n(a.x2)} ${n(a.y2)}`,
+  polyline: (a) => `M${a.points.trim()}`,
+  polygon: (a) => `M${a.points.trim()}z`,
+  rect: (a) => {
+    const x = n(a.x), y = n(a.y), w = n(a.width), h = n(a.height);
+    const rx = Math.min(n(a.rx ?? a.ry), w / 2);
+    const ry = Math.min(n(a.ry ?? a.rx), h / 2);
+    if (!rx || !ry) return `M${x} ${y}h${w}v${h}h${-w}z`;
+    const arc = (dx, dy) => `a${rx} ${ry} 0 0 1 ${dx} ${dy}`;
+    return `M${n(x + rx)} ${y}h${n(w - 2 * rx)}${arc(rx, ry)}v${n(h - 2 * ry)}${arc(-rx, ry)}h${n(2 * rx - w)}${arc(-rx, -ry)}v${n(2 * ry - h)}${arc(rx, -ry)}z`;
+  },
+};
+const GEOMETRY = new Set(['d', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'width', 'height', 'x1', 'y1', 'x2', 'y2', 'points']);
+const STYLE = new Set(['stroke-width', 'stroke-linecap', 'stroke-linejoin']);
+
+/** The icon's markup with its plain strokes (same width, caps and joins) as one path. */
+function joinStrokes(markup) {
+  const parts = [];
+  const groups = new Map();
+  for (const [whole, tag, attrText] of markup.matchAll(/<(\w+)((?:\s+[\w-]+="[^"]*")*)\s*\/>|<(\w+)[^>]*>[\s\S]*?<\/\3>/g)) {
+    const attrs = {};
+    if (tag) for (const [, k, v] of attrText.matchAll(/([\w-]+)="([^"]*)"/g)) attrs[k] = v;
+    const plain = tag && PATH[tag] && Object.entries(attrs).every(([k, v]) => GEOMETRY.has(k) || STYLE.has(k) || (k === 'fill' && v === 'none'));
+    if (!plain) {
+      parts.push(whole);
+      continue;
+    }
+    const style = Object.keys(attrs).filter((k) => STYLE.has(k)).sort().map((k) => ` ${k}="${attrs[k]}"`).join('');
+    if (!groups.has(style)) {
+      groups.set(style, []);
+      parts.push({ style });
+    }
+    groups.get(style).push(PATH[tag](attrs));
+  }
+  return parts.map((p) => (typeof p === 'string' ? p : `<path d="${groups.get(p.style).join('')}"${p.style}/>`)).join('');
+}
+
+const joined = new Map();
+
 export function icon(name, cls = '') {
-  const p = P[name] || P.info;
-  return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  if (!P[name]) name = 'info';
+  if (!joined.has(name)) joined.set(name, joinStrokes(P[name]));
+  return `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${joined.get(name)}</svg>`;
 }
 
 export function iconEl(name, cls = '') {
