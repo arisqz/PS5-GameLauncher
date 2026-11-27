@@ -1,0 +1,273 @@
+/* ------------------------------------------------------------------ */
+/* On-screen keyboard (ui/osk.js), as the PS5's: measured from a video  */
+/* of it and a 1920 × 1080 screenshot (192 × 108rem). 87.2rem wide: an  */
+/* empty suggestions bar, four rows of eleven keys (7.48rem apart, the  */
+/* focus box 6.2rem square) and two rows of function keys, 5.3rem high. */
+/* The panel lets a little of what's behind it through, as the PS5's.  */
+/* ------------------------------------------------------------------ */
+.osk {
+  /* The arrival flash, measured on the PS5's keyboard: it adds ~135 of 255 at
+     its head (list rows: ~50) and fades by e every 0.07 s; the ring comes in
+     from 0.13 s to 0.19 s after the move (ui/focusfx.js reads these). */
+  --flash-amp: 0.55;
+  --flash-fade: 0.07;
+  --ring-in: 0.13;
+  --ring-in-for: 0.06;
+  --osk-bar: rgba(36, 38, 43, 0.9);
+  --osk-keys: rgba(24, 26, 30, 0.9);
+  --osk-cell: rgba(54, 56, 61, 0.88);
+  --osk-x: #34363b;
+  width: 87.2rem;
+  background: var(--osk-keys);
+  color: #fff;
+  user-select: none;
+}
+
+.osk-bar {
+  height: 6.6rem;
+  background: var(--osk-bar);
+}
+
+.osk-keys {
+  padding: 0.3rem 2.44rem 0.5rem;
+}
+
+.osk-row {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  justify-items: center;
+  align-items: center;
+  height: 6.6rem;
+}
+
+.osk-key {
+  position: relative;
+  width: 6.2rem;
+  height: 6.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.35rem;
+  --fx-r: 0.35rem;
+  font-size: 3.2rem;
+  font-weight: 300;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* The focused character turns bold and a size up at once; the ring and the
+   arrival flash are the list rows' (.fx-in). */
+.osk-key.focused {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: #fff;
+  /* the box's faint fill comes in with its ring, after the flash */
+  background: rgba(255, 255, 255, 0.035);
+  transition: background-color 0.06s linear 0.13s;
+}
+
+/* Function keys. */
+.osk-fn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.37rem;
+  padding: 0 0.15rem 0.2rem;
+}
+
+.osk-fn-row {
+  display: flex;
+  gap: 0.37rem;
+  height: 5.3rem;
+}
+
+.osk-tabs {
+  display: flex;
+  flex-basis: 0;
+  background: var(--osk-cell);
+}
+
+.osk-cell {
+  position: relative;
+  flex-basis: 0;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 0.2rem;
+  --fx-r: 0.2rem;
+  background: var(--osk-cell);
+  color: #fff;
+}
+
+.osk-tabs .osk-cell {
+  flex: 1 1 0;
+  background: none;
+}
+
+.osk-lbl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.osk-cell.tab.active .osk-lbl,
+.k-abc .osk-lbl {
+  font-weight: 700;
+}
+
+.osk-cell.tab:not(.active) .osk-lbl {
+  font-weight: 400;
+}
+
+/* The page in use: a grey bar along its bottom. */
+.osk-cell.tab.active {
+  box-shadow: inset 0 -0.32rem 0 rgba(255, 255, 255, 0.42);
+}
+
+.k-acc .osk-lbl {
+  font-size: 2.9rem;
+}
+
+.k-done .osk-lbl {
+  font-size: 3.1rem;
+  font-weight: 700;
+}
+
+.osk-ic {
+  display: block;
+  height: 2.5rem;
+  width: auto;
+}
+
+.k-space .osk-ic {
+  height: 1.2rem;
+}
+
+.k-back .osk-ic {
+  height: 2rem;
+}
+
+.k-left .osk-ic,
+.k-right .osk-ic {
+  height: 1.9rem;
+}
+
+.k-more .osk-ic {
+  height: 0.8rem;
+}
+
+.k-pointer .osk-ic {
+  height: 2.9rem;
+}
+
+/* The controller shortcut, top right. */
+.osk-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.8rem;
+  font-size: 1.45rem;
+  font-weight: 500;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.osk-btn .osk-ic {
+  height: 1.35rem;
+}
+
+/* Pressed: the key gives a little and lights up. */
+.osk-key.press,
+.osk-cell.press {
+  animation: oskPress 0.28s var(--ease-out);
+}
+
+@keyframes oskPress {
+  0% { transform: none; filter: none; }
+  25% { transform: scale(0.955); filter: brightness(1.35); }
+  100% { transform: none; filter: none; }
+}
+
+/* ---- Floating (ui/dialogs.js textDialog): a window with the field on top,
+   placed next to what it's for. It fades in over 0.17 s, the keys a moment
+   after the frame, as on the PS5. */
+.okb-overlay {
+  background: rgba(0, 0, 0, 0);
+  transition: background 0.2s var(--ease);
+}
+
+.okb-overlay.open {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.okb {
+  position: absolute;
+  width: 87.2rem;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  backdrop-filter: blur(2.4rem);
+  box-shadow: 0 2.4rem 7rem rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  opacity: 0;
+  transition: opacity 0.17s var(--ease);
+}
+
+.okb-overlay.open .okb {
+  opacity: 1;
+}
+
+.okb .osk-keys {
+  opacity: 0;
+  transition: opacity 0.13s var(--ease) 0.05s;
+}
+
+.okb-overlay.open .okb .osk-keys {
+  opacity: 1;
+}
+
+.okb-overlay.closing .okb {
+  opacity: 0;
+  transition-duration: 0.12s;
+}
+
+.okb-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  min-height: 11.2rem;
+  padding: 1.5rem 1.6rem 1.4rem;
+  background: rgba(16, 19, 22, 0.94);
+  border-bottom: 0.3rem solid rgba(255, 255, 255, 0.14);
+  cursor: text;
+}
+
+.okb-title {
+  font-size: 1.7rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.okb-input {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: 3rem;
+  font-weight: 300;
+  caret-color: #fff;
+  outline: none;
+  user-select: text;
+}
+
+.okb-input::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+/* ---- Docked (search): the keyboard stays put; its panel is its own. */
+.search-osk .osk {
+  border-radius: 0.6rem;
+  overflow: hidden;
+  backdrop-filter: blur(2.4rem);
+  box-shadow: 0 2.4rem 7rem rgba(0, 0, 0, 0.45);
+}

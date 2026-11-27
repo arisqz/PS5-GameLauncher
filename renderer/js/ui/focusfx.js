@@ -106,13 +106,13 @@ function ringAt(t) {
 
 /** One frame of the arrival flash (false once it's over). */
 function drawFlash(st, t) {
-  const { dir, w, h } = st.flash;
+  const { dir, w, h, amp, fade, ringIn, ringFor } = st.flash;
   const glint = st.rules.glint.style;
   const ring = st.rules.ring.style;
-  ring.setProperty('opacity', String(Math.max(0, Math.min(1, (t - RING_IN) / RING_IN_FOR))), 'important');
+  ring.setProperty('opacity', String(Math.max(0, Math.min(1, (t - ringIn) / ringFor))), 'important');
   if (t >= FLASH_END) {
     for (const p of ['background-image', 'background-size', 'background-position', 'opacity', 'mix-blend-mode']) glint.removeProperty(p);
-    if (t >= RING_IN + RING_IN_FOR) {
+    if (t >= ringIn + ringFor) {
       ring.removeProperty('opacity');
       return false;
     }
@@ -134,7 +134,7 @@ function drawFlash(st, t) {
   glint.setProperty('background-image', COMETS[dir], 'important');
   glint.setProperty('background-size', `${sw.toFixed(1)}px ${sh.toFixed(1)}px`, 'important');
   glint.setProperty('background-position', `${x.toFixed(1)}px ${y.toFixed(1)}px`, 'important');
-  glint.setProperty('opacity', (FLASH * Math.exp(-t / FLASH_FADE)).toFixed(3), 'important');
+  glint.setProperty('opacity', (amp * Math.exp(-t / fade)).toFixed(3), 'important');
   glint.setProperty('mix-blend-mode', 'plus-lighter', 'important');
   return true;
 }
@@ -202,7 +202,22 @@ function start(el) {
   // Reached by a move of the controller or the arrow keys: the arrival flash (list rows and tabs).
   const dir = el.classList.contains('fx-in') && !document.body.classList.contains('reduce-motion') ? recentMove() : null;
   if (dir) {
-    st.flash = { dir, w: el.offsetWidth, h: el.offsetHeight };
+    // Elements may have the PS5's flash for them (the keyboard's is brighter
+    // and quicker): --flash-amp, --flash-fade, --ring-in, --ring-in-for (s).
+    const cs = getComputedStyle(el);
+    const num = (name, def) => {
+      const v = parseFloat(cs.getPropertyValue(name));
+      return Number.isFinite(v) ? v : def;
+    };
+    st.flash = {
+      dir,
+      w: el.offsetWidth,
+      h: el.offsetHeight,
+      amp: num('--flash-amp', FLASH),
+      fade: num('--flash-fade', FLASH_FADE),
+      ringIn: num('--ring-in', RING_IN),
+      ringFor: num('--ring-in-for', RING_IN_FOR),
+    };
     st.rules.ring.style.setProperty('opacity', '0', 'important');
   }
   active.set(el, st);

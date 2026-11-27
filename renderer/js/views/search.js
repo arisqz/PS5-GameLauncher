@@ -37,24 +37,16 @@ export function openSearch(router) {
   const input = h('input', { class: 'search-input', placeholder: 'Search your games', spellcheck: 'false' });
   const resultsRow = h('div', { class: 'search-results' });
   const label = h('div', { class: 'search-label' });
+  // Docked: the keyboard stays put under the results (the PS5's locked position).
   const osk = createOSK({
-    onChar: (c) => {
-      const s = input.selectionStart ?? input.value.length;
-      input.setRangeText(c, s, input.selectionEnd ?? s, 'end');
-      update();
-    },
-    onBackspace: () => {
-      const s = input.selectionStart ?? input.value.length;
-      const e = input.selectionEnd ?? s;
-      if (s !== e) input.setRangeText('', s, e, 'end');
-      else if (s > 0) input.setRangeText('', s - 1, s, 'end');
-      update();
-    },
+    input,
+    onChange: () => update(),
     onDone: () => {
       if (results.length) setZone('results');
       else sfx.bump();
     },
   });
+  input.addEventListener('input', () => osk.typed());
   const hints = h('div', { class: 'search-hints' });
   renderHints(hints, [
     ['confirm', 'Select'],

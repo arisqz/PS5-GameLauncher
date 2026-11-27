@@ -37,6 +37,8 @@ const BUTTONS = {
   7: 'r2',
   8: 'select',
   9: 'options',
+  10: 'l3',
+  11: 'r3',
   12: 'up',
   13: 'down',
   14: 'left',

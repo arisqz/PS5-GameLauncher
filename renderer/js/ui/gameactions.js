@@ -369,7 +369,7 @@ async function manageGame(game, anchor) {
         label: 'Rename…',
         icon: 'edit',
         run: async () => {
-          const name = await textDialog({ title: 'Rename', value: game.name });
+          const name = await textDialog({ title: 'Rename', value: game.name, capitalize: true });
           if (name && name.trim()) await api.updateGame(id, { name: name.trim() });
         },
       },

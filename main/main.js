@@ -1517,6 +1517,9 @@ function start() {
     }, 100).unref();
   }
 
+  // The on-screen keyboard's Paste: plain text only, and only when asked.
+  ipcMain.handle('clipboard:text', () => require('electron').clipboard.readText().slice(0, 4096));
+
   ipcMain.handle('window:action', (_e, action) => {
     if (!win) return;
     if (action === 'minimize') win.minimize();

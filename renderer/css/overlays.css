@@ -180,106 +180,6 @@
   justify-content: flex-end;
 }
 
-/* Text entry */
-.text-dialog {
-  width: 116rem;
-}
-
-.dlg-input {
-  margin-top: 2.6rem;
-  height: 7.6rem;
-  padding: 0 2.4rem;
-  border-radius: 1.2rem;
-  border: 0.2rem solid rgba(255, 255, 255, 0.85);
-  background: rgba(0, 0, 0, 0.35);
-  font-size: 3rem;
-  caret-color: #fff;
-  user-select: text;
-}
-
-.dlg-input::placeholder {
-  color: var(--text-4);
-}
-
-/* On-screen keyboard */
-.osk {
-  margin-top: 2.6rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-}
-
-.osk-row {
-  display: flex;
-  gap: 0.9rem;
-}
-
-.osk-key {
-  height: 6.6rem;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 2.6rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.8rem;
-  transition: background 0.12s, color 0.036s steps(1, end), transform 0.15s var(--ease-out), box-shadow 0.12s;
-}
-
-.osk-key svg {
-  width: 2.8rem;
-  height: 2.8rem;
-}
-
-.osk-key.k-done,
-.osk-key.k-space,
-.osk-key.k-back,
-.osk-key.k-shift {
-  font-size: 2.1rem;
-  background: rgba(255, 255, 255, 0.13);
-}
-
-.osk-key.primary {
-  background: var(--blue);
-}
-
-.osk-key.k-shift.on {
-  background: rgba(255, 255, 255, 0.85);
-  color: #111;
-}
-
-.osk-key.focused {
-  background: #fff;
-  color: #111;
-  transform: scale(1.06);
-  box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.4);
-}
-
-.osk-hints {
-  display: flex;
-  gap: 3rem;
-  justify-content: flex-end;
-  margin-top: 1rem;
-  font-size: 1.8rem;
-  color: var(--text-3);
-}
-
-.osk-hints span {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-body[data-input="keyboard"] .osk-hints,
-body[data-input="mouse"] .osk-hints {
-  visibility: hidden;
-}
-
-body[data-input="keyboard"] .text-dialog .osk,
-body[data-input="mouse"] .text-dialog .osk {
-  opacity: 0.55;
-}
-
 /* Slider */
 .slider-dialog {
   width: 72rem;
@@ -828,14 +728,9 @@ body.reduce-motion .launch-overlay {
 .search-osk {
   position: absolute;
   left: 50%;
-  bottom: 10rem;
-  width: 116rem;
+  bottom: 7rem;
   transform: translateX(-50%);
-  transition: opacity 0.3s var(--ease), transform 0.4s var(--ease-out);
-}
-
-.search-osk .osk {
-  margin: 0;
+  transition: opacity 0.3s var(--ease);
 }
 
 .search-overlay.results-focus .search-osk {
@@ -2081,7 +1976,6 @@ body[data-input="mouse"] .fb-crumb:hover {
    by the button), so it doesn't also shrink into place on its own, which
    would go on after the button has settled. It still goes at once when focus
    moves on (base.css). */
-.dlg-btn::before,
-.osk-key::before {
+.dlg-btn::before {
   transform: none;
 }

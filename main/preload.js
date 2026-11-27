@@ -138,6 +138,7 @@ contextBridge.exposeInMainWorld('api', {
   emulatorsPads: invoke('emulators:pads'),
   openExternal: invoke('app:openExternal'),
   windowAction: invoke('window:action'),
+  clipboardText: invoke('clipboard:text'),
   perfHitch: invoke('perf:hitch'),
   power: invoke('power:action'),
 

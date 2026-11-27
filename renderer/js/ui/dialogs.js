@@ -342,30 +342,69 @@ export function confirmDialog({ title, message = '', confirmLabel = 'OK', cancel
 /* Text entry                                                          */
 /* ------------------------------------------------------------------ */
 
-export function textDialog({ title, value = '', placeholder = '', secret = false, okLabel = 'OK' }) {
-  return new Promise((resolve) => {
-    const input = h('input', { class: 'dlg-input', type: secret ? 'password' : 'text', placeholder: t(placeholder), spellcheck: 'false' });
-    input.value = value;
-    const osk = createOSK({
-      onChar: (c) => insert(c),
-      onBackspace: () => {
-        const s = input.selectionStart ?? input.value.length;
-        const e = input.selectionEnd ?? s;
-        if (s !== e) input.setRangeText('', s, e, 'end');
-        else if (s > 0) input.setRangeText('', s - 1, s, 'end');
-      },
-      onDone: () => done(input.value),
-    });
-    function insert(c) {
-      const s = input.selectionStart ?? input.value.length;
-      const e = input.selectionEnd ?? s;
-      input.setRangeText(c, s, e, 'end');
+/** What the user was on when a keyboard was asked for: the focused element of the screen in front. */
+function focusAnchor() {
+  const layers = [...document.querySelectorAll('#overlays > .overlay:not(.closing)')];
+  const scope = layers[layers.length - 1] || document.querySelector('.view.active') || document;
+  const visible = [...scope.querySelectorAll('.focused')].filter((e) => {
+    const r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  });
+  return visible[visible.length - 1] || null;
+}
+
+/**
+ * Where a floating keyboard goes, as on the PS5: just below what it's for, or
+ * just above it when there's no room below, lined up with its left edge; with
+ * no room either way, beside it; kept on screen. Nothing to go by: bottom centre.
+ */
+function placeKeyboard(win, anchor) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const rem = vw / 192;
+  const w = win.offsetWidth;
+  const hgt = win.offsetHeight;
+  const m = 4 * rem;
+  const gap = 1.6 * rem;
+  const r = anchor && anchor.isConnected ? anchor.getBoundingClientRect() : null;
+  let x = (vw - w) / 2;
+  let y = vh - m - hgt;
+  if (r && r.width) {
+    x = r.left;
+    if (r.bottom + gap + hgt <= vh - m) y = r.bottom + gap;
+    else if (r.top - gap - hgt >= m) y = r.top - gap - hgt;
+    else {
+      // Taller than the room above or below: beside it if it fits, else over its lower part.
+      y = Math.max(m, Math.min(vh - m - hgt, r.top + r.height / 2 - hgt / 2));
+      if (r.right + gap + w <= vw - m) x = r.right + gap;
+      else if (r.left - gap - w >= m) x = r.left - gap - w;
+      else y = vh - m - hgt;
     }
-    const root = h(
-      'div',
-      { class: 'overlay dialog-overlay text-overlay' },
-      h('div', { class: 'dialog text-dialog' }, h('div', { class: 'dlg-title', text: t(title) }), input, osk.el)
-    );
+  }
+  win.style.left = `${Math.round(clamp(x, m, vw - m - w))}px`;
+  win.style.top = `${Math.round(clamp(y, m, vh - m - hgt))}px`;
+}
+
+/**
+ * Text entry: the PS5's floating keyboard, a window with the text field on top,
+ * placed next to what was selected (or `anchor`).
+ */
+export function textDialog({ title, value = '', placeholder = '', secret = false, okLabel = 'Done', capitalize = false, anchor = undefined }) {
+  return new Promise((resolve) => {
+    const from = anchor === undefined ? focusAnchor() : anchor;
+    const input = h('input', { class: 'okb-input', type: secret ? 'password' : 'text', placeholder: t(placeholder || ''), spellcheck: 'false', autocomplete: 'off' });
+    input.value = value;
+    const osk = createOSK({ input, onDone: () => done(input.value), doneLabel: okLabel === 'OK' ? 'Done' : okLabel, capitalize });
+    input.addEventListener('input', () => osk.typed());
+    const win = h('div', { class: 'okb' }, h('label', { class: 'okb-field' }, title ? h('span', { class: 'okb-title', text: t(title) }) : null, input), osk.el);
+    const root = h('div', { class: 'overlay okb-overlay' }, win);
+    // A click beside the keyboard puts it away, as Back does.
+    root.addEventListener('mousedown', (e) => {
+      if (e.target !== root) return;
+      e.preventDefault();
+      cancel();
+    });
+    let closed = false;
     const ctl = mountOverlay(
       root,
       (action, meta) => {
@@ -374,22 +413,28 @@ export function textDialog({ title, value = '', placeholder = '', secret = false
           return true;
         }
         if (action === 'back') {
-          sfx.back();
-          ctl.close();
-          resolve(null);
+          cancel();
           return true;
         }
-        osk.handle(action);
+        if (!osk.handle(action) && ['up', 'down', 'left', 'right'].includes(action)) sfx.bump();
         return true;
       },
-      { dimApp: true }
+      { closeDelay: 200 }
     );
+    placeKeyboard(win, from);
     sfx.open();
-    setTimeout(() => {
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-    }, 60);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+    function cancel() {
+      if (closed) return;
+      closed = true;
+      sfx.back();
+      ctl.close();
+      resolve(null);
+    }
     function done(v) {
+      if (closed) return;
+      closed = true;
       sfx.select();
       ctl.close();
       resolve(v);

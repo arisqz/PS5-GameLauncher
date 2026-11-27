@@ -3776,8 +3776,10 @@ namespace PS5GameLauncher
     static class Pad
     {
         const int UP = 1, DOWN = 2, LEFT = 4, RIGHT = 8, CONFIRM = 16, BACK = 32, X = 64, Y = 128, OPTIONS = 256, SELECT = 512, L1 = 1024, R1 = 2048, GUIDE = 4096;
-        static readonly int[] Bits = { UP, DOWN, LEFT, RIGHT, CONFIRM, BACK, X, Y, OPTIONS, SELECT, L1, R1, GUIDE };
-        static readonly string[] Names = { "up", "down", "left", "right", "confirm", "back", "x", "y", "options", "select", "l1", "r1", "guide" };
+        // The triggers and stick clicks (the on-screen keyboard's shift, Done and symbols).
+        const int L2 = 8192, R2 = 16384, L3 = 32768, R3 = 65536;
+        static readonly int[] Bits = { UP, DOWN, LEFT, RIGHT, CONFIRM, BACK, X, Y, OPTIONS, SELECT, L1, R1, GUIDE, L2, R2, L3, R3 };
+        static readonly string[] Names = { "up", "down", "left", "right", "confirm", "back", "x", "y", "options", "select", "l1", "r1", "guide", "l2", "r2", "l3", "r3" };
 
         public static volatile bool Forward;
         static readonly object Gate = new object();
@@ -4104,6 +4106,10 @@ namespace PS5GameLauncher
                         if ((b & 0x0100) != 0) m |= L1;
                         if ((b & 0x0200) != 0) m |= R1;
                         if ((b & 0x0400) != 0) m |= GUIDE;
+                        if ((b & 0x0040) != 0) m |= L3;
+                        if ((b & 0x0080) != 0) m |= R3;
+                        if (st.Gamepad.bLeftTrigger > 128) m |= L2;
+                        if (st.Gamepad.bRightTrigger > 128) m |= R2;
                         if ((b & 0x1000) != 0) m |= CONFIRM;
                         if ((b & 0x2000) != 0) m |= BACK;
                         if ((b & 0x4000) != 0) m |= X;
@@ -4388,6 +4394,10 @@ namespace PS5GameLauncher
             if ((b[b0] & 0x80) != 0) m |= Y;        // triangle
             if ((b[b1] & 0x01) != 0) m |= L1;
             if ((b[b1] & 0x02) != 0) m |= R1;
+            if ((b[b1] & 0x04) != 0) m |= L2;
+            if ((b[b1] & 0x08) != 0) m |= R2;
+            if ((b[b1] & 0x40) != 0) m |= L3;
+            if ((b[b1] & 0x80) != 0) m |= R3;
             if ((b[b1] & 0x10) != 0) m |= SELECT;   // create / share
             if ((b[b1] & 0x20) != 0) m |= OPTIONS;
             if ((b[b2] & 0x01) != 0) m |= GUIDE;    // PS button

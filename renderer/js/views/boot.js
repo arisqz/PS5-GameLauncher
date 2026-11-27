@@ -184,7 +184,7 @@ class Welcome {
     if (it.type === 'add') {
       sfx.select();
       this.busy = true;
-      const name = await textDialog({ title: 'Add User', placeholder: 'Name', okLabel: 'Add' });
+      const name = await textDialog({ title: 'Add User', placeholder: 'Name', okLabel: 'Add', capitalize: true });
       this.busy = false;
       if (name && name.trim()) {
         const p = await addProfile(name.trim());
@@ -218,7 +218,7 @@ class Welcome {
           label: 'Change Name…',
           icon: 'edit',
           run: async () => {
-            const name = await textDialog({ title: 'Profile Name', value: p.name });
+            const name = await textDialog({ title: 'Profile Name', value: p.name, capitalize: true });
             if (name && name.trim()) await updateProfile(p.id, { name: name.trim() });
           },
         },
