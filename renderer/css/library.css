@@ -68,6 +68,12 @@
 }
 
 /* Round sort / filter button left of the grid */
+@property --lib-filter-lit {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
 .lib-filter {
   position: absolute;
   top: 33.6rem;
@@ -79,19 +85,36 @@
   place-items: center;
   font-size: 3.4rem;
   color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-  transition: background 0.2s, color 0.2s, transform 0.3s var(--ease-out), top 0.5s var(--ease-out);
+  /* The disc fades between dim and light through --lib-filter-lit, the
+     glyph flips colour once the disc is about half lit, and the button
+     grows on the same timing, so the arrows always stand out and it lights
+     up and grows as one. */
+  --lib-filter-lit: 0;
+  background: rgb(255 255 255 / calc(0.1 + 0.8 * var(--lib-filter-lit)));
+  transition:
+    --lib-filter-lit 0.2s var(--ease),
+    color 0.05s steps(1, end),
+    transform 0.2s var(--ease),
+    top 0.5s var(--ease-out);
   --fx-r: 3.7rem;
   --fx-gap: 0.35rem;
   --glint: 0.3;
 }
 
 .lib-filter.focused {
-  background: rgba(255, 255, 255, 0.9);
+  --lib-filter-lit: 1;
   color: #111;
   transform: scale(1.04);
 }
 
+
+/* The ring grows with the button (it is drawn by it), so it doesn't also
+   shrink into place on its own, which would go on after the button has
+   settled. */
+.lib-filter::before {
+  transform: none;
+  transition: opacity 0.2s var(--ease);
+}
 
 .lib-filter.filtered {
   box-shadow: inset 0 0 0 0.25rem var(--blue);
