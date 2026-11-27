@@ -338,6 +338,7 @@ export class QuickMenu {
         cap: sessionText(playing),
         title: playing.name,
         playing: true,
+        panel: true,
         run: () => this.openPanel(this.barIndex('game')),
       });
     }
@@ -371,6 +372,7 @@ export class QuickMenu {
         cap: dls.length === 1 ? 'Downloads' : t('Downloads · {n}', { n: dls.length }),
         title: d.name,
         sub: ' ',
+        panel: true,
         run: () => this.openPanel(this.barIndex('notifications')),
       });
     }
@@ -381,6 +383,7 @@ export class QuickMenu {
         cap: `${appName(m.app)} · ${t(m.status === 'Playing' ? 'Now playing' : 'Paused')}`,
         title: m.title || 'Unknown title',
         sub: m.artist || '',
+        panel: true,
         run: () => this.openPanel(this.barIndex('music')),
       });
     }
@@ -388,6 +391,7 @@ export class QuickMenu {
       const st = party.state;
       cards.push({
         party: true,
+        panel: true,
         cap: `${t('Party')} · ${t(st.members.length === 1 ? '1 member' : '{n} members', { n: st.members.length })}`,
         title: st.channel.name,
         sub: st.channel.guild || (st.channel.dm ? 'Direct call' : ''),
@@ -424,6 +428,7 @@ export class QuickMenu {
       icon: n ? n.icon || 'bell' : 'bell',
       cap: n ? `${state.notifications.length} notification${state.notifications.length === 1 ? '' : 's'}` : 'All caught up',
       title: n ? n.title : 'No new notifications',
+      panel: true,
       run: () => this.openPanel(this.barIndex('notifications')),
     });
     return cards.slice(0, 4);
@@ -472,7 +477,7 @@ export class QuickMenu {
           class: `qm-card fx${c.media ? ' media' : ''}${c.playing ? ' playing' : ''}${c.download ? ' download' : ''}${c.capture ? ' capture' : ''}${animate ? ' anim' : ''}`,
           style: { animationDelay: `${0.06 + i * 0.05}s` },
           onmouseenter: () => mouseActive() && this.focus('cards', i, true),
-          onclick: () => c.run(),
+          onclick: () => this.activateCard(i),
         },
         img,
         h(
@@ -695,6 +700,14 @@ export class QuickMenu {
     const prev = cur.previousElementSibling;
     if (prev && prev._row && prev._row.type === 'section') prev.scrollIntoView({ block: 'nearest' });
     cur.scrollIntoView({ block: 'nearest' });
+  }
+
+  /** Cards that open a panel get their select sound from openPanel(); the rest play it here. */
+  activateCard(i) {
+    const c = this.cards[i];
+    if (!c) return;
+    if (!c.panel) sfx.select();
+    c.run();
   }
 
   activateBar(i) {
@@ -1892,10 +1905,8 @@ export class QuickMenu {
         this.layoutCards();
       }
       else if (action === 'down') this.focus('bar', this.barNav.index);
-      else if (action === 'confirm') {
-        sfx.select();
-        this.cards[this.cardNav.index].run();
-      } else if (action === 'up') sfx.bump();
+      else if (action === 'confirm') this.activateCard(this.cardNav.index);
+      else if (action === 'up') sfx.bump();
       return true;
     }
     if (this.zone === 'bar') {
