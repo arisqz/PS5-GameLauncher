@@ -11,7 +11,7 @@
 import { h, replayClass } from '../util.js';
 import { sfx } from '../sound.js';
 import { state, on } from '../state.js';
-import { getPromptStyle, mouseActive } from '../input.js';
+import { getPromptStyle, mouseActive, repeatWhile } from '../input.js';
 import { t } from '../i18n.js';
 
 /* Layouts: eleven keys a row. Shift gives the capitals (and, on the letters
@@ -343,19 +343,34 @@ export function createOSK({ input, onChange = () => {}, onDone, doneLabel = 'Don
     }
   }
 
+  // Held square deletes letter after letter, like a held Backspace (so does
+  // cross held on the delete key), while this keyboard is up and in use.
+  let wasOn = false;
+  const inUse = () => {
+    if (!el.isConnected) return wasOn ? 'gone' : false;
+    wasOn = true;
+    return focused && !el.closest('.closing');
+  };
+  repeatWhile('x', inUse);
+  repeatWhile('confirm', () => {
+    const r = inUse();
+    return r === true ? rows[row][col] === backEl : r;
+  });
+
   if (capitalize && !input.value) shift = 'once';
   paint();
   setFocus(row, col);
 
   return {
     el,
-    /** Controller / arrow keys. False when a move runs off the keyboard. */
+    /** Controller / arrow keys. False when a move runs off the top or bottom. */
     handle(action) {
       switch (action) {
         case 'left':
         case 'right': {
-          const c = col + (action === 'left' ? -1 : 1);
-          if (c < 0 || c >= rows[row].length) return false;
+          // Past the end of a row: round to its other end.
+          const n = rows[row].length;
+          const c = (col + (action === 'left' ? -1 : 1) + n) % n;
           setFocus(row, c);
           sfx.move();
           return true;

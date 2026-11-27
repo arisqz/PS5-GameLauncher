@@ -2,7 +2,7 @@
 // hiding. Everything is reduced to semantic actions:
 //   up down left right confirm back options guide x y l1 r1 l2 r2 select
 
-import { emit } from './state.js';
+import { emit, state } from './state.js';
 
 const KEYS = {
   ArrowUp: 'up',
@@ -230,11 +230,54 @@ export function setGamepadProbe(fn) {
 /** Input that arrives from the main process (native controller reading). */
 export function externalAction(action, { repeat = false, kind = null } = {}) {
   setDevice('gamepad', kind === 'ps' || kind === 'xbox' ? kind : undefined);
-  if (repeat) fireRepeat(action);
-  else fire(action, 'gamepad');
+  if (repeat) {
+    // The helper repeats a held square or cross too; only where it's asked for.
+    if (!REPEATABLE.has(action) && !repeats(action)) return;
+    fireRepeat(action);
+  } else fire(action, 'gamepad');
+}
+
+/*
+ * Held buttons other than the directions repeat only while something asks for
+ * it, e.g. square on the on-screen keyboard, which then deletes letter after
+ * letter like a held Backspace. `test` says whether it still wants that; it
+ * returns 'gone' once it never will again.
+ */
+const repeaters = new Map(); // action -> [test]
+export function repeatWhile(action, test) {
+  if (!repeaters.has(action)) repeaters.set(action, []);
+  repeaters.get(action).push(test);
+}
+function repeats(action) {
+  const list = repeaters.get(action);
+  if (!list) return false;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const r = list[i]();
+    if (r === 'gone') list.splice(i, 1);
+    else if (r) return true;
+  }
+  return false;
+}
+
+/*
+ * The right stick, -1..1 each way (y down): from the browser's own reading of
+ * the controller, or from the helper's (controller passthrough). It moves the
+ * pointer on web pages in the launcher (ui/webpointer.js).
+ */
+const stick = { x: 0, y: 0, at: 0 };
+export function rightStick() {
+  // The helper says when it's let go; a reading older than that is stale.
+  return performance.now() - stick.at < 400 ? { x: stick.x, y: stick.y } : { x: 0, y: 0 };
+}
+export function externalStick(x, y) {
+  stick.x = +x || 0;
+  stick.y = +y || 0;
+  stick.at = performance.now();
+  if (stick.x || stick.y) setDevice('gamepad');
 }
 
 let hadFocus = true;
+let stickPush = 0; // how far the right stick is pushed this poll (squared)
 
 /** Buttons currently held on all pads (used to swallow presses across focus changes). */
 function currentPressed(pad) {
@@ -267,7 +310,9 @@ function poll(now) {
   // Chromium keeps reporting the controller to background windows. The launcher
   // must ignore it while a game (or the overlay) has focus — and a button that
   // is still held when we get focus back must not count as a new press.
-  const focused = document.hasFocus();
+  // A web page in the launcher (the setup's SteamGridDB view) can have the
+  // focus without the launcher losing it.
+  const focused = document.hasFocus() || (document.activeElement && document.activeElement.tagName === 'WEBVIEW' && state.window.focused !== false);
   if (!focused || !hadFocus) {
     held.clear();
     for (const pad of pads) if (pad && pad.connected) prevButtons.set(pad.index, currentPressed(pad));
@@ -283,9 +328,14 @@ function poll(now) {
       const a = BUTTONS[i];
       if (a && (b.pressed || b.value > 0.6)) pressed.add(a);
     });
-    const [ax = 0, ay = 0] = pad.axes;
+    const [ax = 0, ay = 0, rx = 0, ry = 0] = pad.axes;
     if (Math.abs(ax) > 0.55 && Math.abs(ax) > Math.abs(ay)) pressed.add(ax < 0 ? 'left' : 'right');
     else if (Math.abs(ay) > 0.55) pressed.add(ay < 0 ? 'up' : 'down');
+    // The right stick of the pad pushed furthest.
+    if (rx * rx + ry * ry > 0.15 * 0.15 && rx * rx + ry * ry >= stickPush) {
+      stickPush = rx * rx + ry * ry;
+      externalStick(rx, ry);
+    }
 
     const prev = prevButtons.get(pad.index) || new Set();
     for (const a of pressed) {
@@ -296,16 +346,19 @@ function poll(now) {
           // Only one direction auto-repeats at a time.
           for (const k of [...held.keys()]) if (REPEATABLE.has(k)) held.delete(k);
           held.set(a, { next: now + FIRST_DELAY, count: 0 });
-        }
+        } else if (repeats(a)) held.set(a, { next: now + FIRST_DELAY, count: 0 });
         fire(a, 'gamepad');
       }
       active.add(a);
     }
     prevButtons.set(pad.index, pressed);
   }
+  // Let go on every pad: the pointer stops.
+  if (!stickPush && stick.at && (stick.x || stick.y) && performance.now() - stick.at > 50) externalStick(0, 0);
+  stickPush = 0;
 
   for (const [a, st] of held) {
-    if (!active.has(a)) {
+    if (!active.has(a) || (!REPEATABLE.has(a) && !repeats(a))) {
       held.delete(a);
       continue;
     }

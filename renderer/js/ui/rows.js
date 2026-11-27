@@ -87,8 +87,11 @@ export async function activateRow(d, el, rerender) {
       const initial = d.get ? (d.secret ? '' : d.get() || '') : s[d.key] || '';
       const v = await textDialog({ title: t(d.label), value: initial, secret: d.secret, placeholder: d.placeholder || '' });
       if (v !== null) {
+        const before = d.get ? d.get() : s[d.key];
         if (d.set) await d.set(v.trim());
         else await setSetting(d.key, v.trim());
+        // Something to do once a new value is in (a key to check, say).
+        if (d.after && v.trim() !== (before || '')) await d.after(v.trim());
       }
       rerender();
       break;

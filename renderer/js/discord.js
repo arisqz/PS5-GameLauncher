@@ -14,7 +14,7 @@ api.on('discord:state', (s) => {
   party.state = s;
   emit('discord');
   if (prev && prev.status !== 'ready' && s.status === 'ready' && prev.status === 'authorizing') {
-    pushNotification({ title: 'Discord connected', body: s.user ? t('Signed in as {name}', { name: s.user.name }) : '', icon: 'party' });
+    pushNotification({ title: 'Discord connected', body: s.user ? t('Signed in as {name}', { name: s.user.name }) : '', icon: 'party', duringSetup: document.body.classList.contains('in-setup') });
   }
 });
 
@@ -45,7 +45,7 @@ export async function discordSetup(data) {
     emit('discord');
     return true;
   } catch (err) {
-    pushNotification({ title: 'Discord', body: clean(err), icon: 'party' });
+    pushNotification({ title: 'Discord', body: clean(err), icon: 'party', duringSetup: document.body.classList.contains('in-setup') });
     return false;
   }
 }
@@ -54,7 +54,7 @@ export async function discordConnect() {
   try {
     await api.discordConnect();
   } catch (err) {
-    pushNotification({ title: 'Discord', body: clean(err), icon: 'party' });
+    pushNotification({ title: 'Discord', body: clean(err), icon: 'party', duringSetup: document.body.classList.contains('in-setup') });
   }
 }
 
@@ -75,7 +75,7 @@ function coalesce(key, run) {
     try {
       await fn();
     } catch (err) {
-      pushNotification({ title: 'Discord', body: clean(err), icon: 'party' });
+      pushNotification({ title: 'Discord', body: clean(err), icon: 'party', duringSetup: document.body.classList.contains('in-setup') });
     }
     q.busy = false;
     pump();
@@ -152,7 +152,7 @@ export async function joinVoice(channelId) {
     await api.discordCmd('join', channelId);
     return true;
   } catch (err) {
-    pushNotification({ title: 'Discord', body: clean(err), icon: 'party' });
+    pushNotification({ title: 'Discord', body: clean(err), icon: 'party', duringSetup: document.body.classList.contains('in-setup') });
     return false;
   }
 }

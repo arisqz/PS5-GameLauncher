@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net, shell, Menu, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, shell, Menu, globalShortcut, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
@@ -86,8 +86,9 @@ const DEFAULT_SETTINGS = {
   // Polling rate games get from the virtual pad, in Hz (0 = the controller's own)
   padRateUsb: 0,
   padRateBt: 0,
-  // Interface typeface: system (Segoe UI) | sst (PlayStation's SST, from renderer/fonts/sst)
-  font: 'system',
+  // Interface typeface: sst (PlayStation's SST, from renderer/fonts/sst; Segoe UI
+  // stands in where those files aren't there) | system (Segoe UI)
+  font: 'sst',
   // Sound themes (deckthemes.com audio packs): installed pack ids, or null for the built-in sounds
   soundPack: null,
   musicPack: null,
@@ -161,17 +162,24 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,MediaSessionService,ParkableImagesToDisk');
 
 /*
- * The only <webview> the launcher has: SteamGridDB in the first-time setup,
- * where the user signs in with Steam and the API key is read off SteamGridDB's
- * API page. It is a plain web page in its own session (persist:sgdb): no
- * preload, no Node, sandboxed, and it stays on SteamGridDB and Steam's sign-in
- * pages. Links anywhere else open in the default browser instead.
+ * The launcher's only <webview>s, both in the first-time setup:
+ *  - SteamGridDB, where the user signs in with Steam and the API key is read
+ *    off SteamGridDB's API page (session persist:sgdb; SteamGridDB and Steam's
+ *    sign-in pages);
+ *  - the Discord Developer Portal, where the user makes the application the
+ *    launcher signs in with (session persist:discord; discord.com only).
+ * Each is a plain web page in its own session: no preload, no Node,
+ * sandboxed, and it stays on its own sites. Links anywhere else open in the
+ * default browser instead.
  */
-const WEBVIEW_HOSTS = /^(?:www\.)?steamgriddb\.com$|^steamcommunity\.com$|^(?:[a-z0-9-]+\.)*steampowered\.com$/i;
-function webviewAllowed(url) {
+const WEBVIEWS = {
+  'persist:sgdb': { start: /^https:\/\/(www\.)?steamgriddb\.com\//i, hosts: /^(?:www\.)?steamgriddb\.com$|^steamcommunity\.com$|^(?:[a-z0-9-]+\.)*steampowered\.com$/i },
+  'persist:discord': { start: /^https:\/\/discord\.com\/developers\//i, hosts: /^(?:www\.)?discord\.com$/i },
+};
+function webviewAllowed(kind, url) {
   try {
     const u = new URL(url);
-    return u.protocol === 'https:' && WEBVIEW_HOSTS.test(u.hostname);
+    return u.protocol === 'https:' && kind.hosts.test(u.hostname);
   } catch {
     return false;
   }
@@ -184,20 +192,24 @@ function guardWebviews(contents) {
     prefs.contextIsolation = true;
     prefs.sandbox = true;
     prefs.webSecurity = true;
-    if (!/^https:\/\/(www\.)?steamgriddb\.com\//i.test(params.src || '') || params.partition !== 'persist:sgdb') e.preventDefault();
+    const kind = Object.hasOwn(WEBVIEWS, params.partition || '') ? WEBVIEWS[params.partition] : null;
+    if (!kind || !kind.start.test(params.src || '')) e.preventDefault();
   });
   contents.on('did-attach-webview', (_e, guest) => {
+    const part = Object.keys(WEBVIEWS).find((p) => session.fromPartition(p) === guest.session);
+    const kind = part ? WEBVIEWS[part] : { hosts: /^$/ };
     guest.on('will-navigate', (e, url) => {
-      if (webviewAllowed(url)) return;
+      if (webviewAllowed(kind, url)) return;
       e.preventDefault();
       if (/^https?:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
     });
-    guest.on('will-redirect', (e, url) => {
-      if (!webviewAllowed(url)) e.preventDefault();
+    // (The page itself; what its frames load, Discord's captcha say, is theirs.)
+    guest.on('will-redirect', (e, url, _inPlace, isMainFrame) => {
+      if (isMainFrame !== false && !webviewAllowed(kind, url)) e.preventDefault();
     });
     // A page asking for a new window (Steam's sign-in, say): in this same view when allowed.
     guest.setWindowOpenHandler(({ url }) => {
-      if (webviewAllowed(url)) guest.loadURL(url).catch(() => {});
+      if (webviewAllowed(kind, url)) guest.loadURL(url).catch(() => {});
       else if (/^https?:\/\//i.test(url)) shell.openExternal(url).catch(() => {});
       return { action: 'deny' };
     });
@@ -525,6 +537,11 @@ function start() {
     // With controller passthrough the launcher reads the real controller
     // through the helper too (the virtual one is muted while it is in front).
     else if ((passthrough.enabled || passthrough.fallback || passthrough.starting) && win && win.isFocused() && !win.isMinimized()) win.webContents.send('pad:action', { action: e.action, repeat: !!e.repeat, kind: e.kind });
+  });
+  // The right stick (the pointer on the setup's SteamGridDB page), the same way.
+  system.on('stick', (e) => {
+    if (overlay.visible) return;
+    if ((passthrough.enabled || passthrough.fallback || passthrough.starting) && win && win.isFocused() && !win.isMinimized()) win.webContents.send('pad:stick', { x: e.x, y: e.y });
   });
 
   /* ---- Controller passthrough (HidHide + libVIIPER) ----------------

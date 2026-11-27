@@ -366,7 +366,8 @@ function placeKeyboard(win, anchor) {
   const hgt = win.offsetHeight;
   const m = 4 * rem;
   const gap = 1.6 * rem;
-  const r = anchor && anchor.isConnected ? anchor.getBoundingClientRect() : null;
+  // An element, or where something is on screen ({ left, top, width, height, right, bottom }).
+  const r = anchor instanceof Element ? (anchor.isConnected ? anchor.getBoundingClientRect() : null) : anchor || null;
   let x = (vw - w) / 2;
   let y = vh - m - hgt;
   if (r && r.width) {
@@ -387,7 +388,7 @@ function placeKeyboard(win, anchor) {
 
 /**
  * Text entry: the PS5's floating keyboard, a window with the text field on top,
- * placed next to what was selected (or `anchor`).
+ * placed next to what was selected (or `anchor`: an element or a screen rectangle).
  */
 export function textDialog({ title, value = '', placeholder = '', secret = false, okLabel = 'Done', capitalize = false, anchor = undefined }) {
   return new Promise((resolve) => {

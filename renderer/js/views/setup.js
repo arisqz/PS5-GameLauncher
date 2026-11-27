@@ -10,9 +10,9 @@
 
 import { h, sleep, clamp, escapeHtml } from '../util.js';
 import { icon } from '../icons.js';
-import { api, state, on, setSetting } from '../state.js';
+import { api, state, on, setSetting, pushNotification } from '../state.js';
 import { sfx, unlockAudio } from '../sound.js';
-import { mouseActive } from '../input.js';
+import { mouseActive, getPromptStyle } from '../input.js';
 import { mountOverlay, FocusList } from '../ui/overlay.js';
 import { BootStage } from '../ui/bootstage.js';
 import { rowHtml, activateRow } from '../ui/rows.js';
@@ -20,11 +20,46 @@ import { glyph } from '../ui/glyphs.js';
 import { optionsMenu, confirmDialog } from '../ui/dialogs.js';
 import { addGameFolder, addGameFiles } from '../ui/filebrowser.js';
 import { LANGUAGES, t } from '../i18n.js';
-import { party, loadDiscord } from '../discord.js';
+import { party, loadDiscord, discordSetup } from '../discord.js';
 import { loadYtdlp } from '../thememusic.js';
 import { discordItems, themeMusicItems, packChoiceItems, loadPacks } from './settingsSchema.js';
+import { checkSgdbKey, sgdbKeyAdded } from '../ui/sgdbkey.js';
+import { WebPointer } from '../ui/webpointer.js';
 
 const SGDB_API = 'https://www.steamgriddb.com/profile/preferences/api';
+const DISCORD_APPS = 'https://discord.com/developers/applications';
+
+// The web pages a step can show on the right: where each starts and the
+// session it keeps (main/main.js lets each stay on its own sites only).
+const WEB = {
+  sgdb: { home: SGDB_API, partition: 'persist:sgdb' },
+  discord: { home: DISCORD_APPS, partition: 'persist:discord' },
+};
+
+/** SHA-256 of a string, in hex. */
+async function digest(s) {
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+/** The setup's rows from Settings › Network › Discord, less the ones the page beside them does. */
+function discordSetupRows() {
+  const st = party.state || {};
+  const got = !!st.configured;
+  const items = discordItems().filter((d) => d.label !== 'Open Discord Developer Portal');
+  // Once it's all in, the status and connecting come first.
+  const top = got ? items.filter((d) => d.label === 'Status' || (d.type === 'action' && /Connect/i.test(d.label))) : [];
+  const rest = items.filter((d) => !top.includes(d));
+  return [
+    ...top,
+    { type: 'step', n: 1, label: 'Sign in to Discord on the right. Scanning the QR code with the Discord app on your phone is quickest.' },
+    { type: 'step', n: 2, label: 'Select New Application, give it any name and create it.', run: () => current && current.discordNewApp() },
+    { type: 'step', n: 3, label: 'Open OAuth2 on the left of the page, add http://localhost under Redirects and save.', run: () => current && current.discordOAuth() },
+    { type: 'step', n: 4, label: got ? 'The Client ID and Secret have been added to the launcher.' : 'Select Reset Secret there. The Client ID and Secret are added to the launcher by themselves.' },
+    ...rest,
+    { type: 'action', icon: 'refresh', label: 'Back to Your Applications', run: () => current && current.reloadWeb() },
+  ];
+}
 
 // The parts of the progress bar, and the steps in each.
 const SECTIONS = ['Language', 'Games and Friends', 'Sound'];
@@ -46,7 +81,7 @@ const STEPS = [
     sub: 'Steam has artwork for Steam games. For everything else, a free SteamGridDB API key gets you covers, backgrounds and logos.',
     // SteamGridDB itself on the right (signing in with Steam, then its API
     // page); the key it shows is picked up by itself (Setup.watchSgdb).
-    web: SGDB_API,
+    web: 'sgdb',
     done: () => !!state.settings.sgdbKey,
     desc: () =>
       state.settings.sgdbKey
@@ -56,7 +91,15 @@ const STEPS = [
       { type: 'step', n: 1, label: 'Sign in on the right with your Steam account. It’s free.' },
       { type: 'step', n: 2, label: 'Select Generate API Key on the page if there isn’t a key yet.', run: () => current && current.generateSgdbKey() },
       { type: 'step', n: 3, label: state.settings.sgdbKey ? 'Your key has been added to the launcher.' : 'The key is added to the launcher by itself.' },
-      { type: 'text', key: 'sgdbKey', label: 'SteamGridDB API Key', icon: 'image', secret: true, placeholder: 'Paste or type your key' },
+      {
+        type: 'text',
+        key: 'sgdbKey',
+        label: 'SteamGridDB API Key',
+        icon: 'image',
+        secret: true,
+        placeholder: 'Paste or type your key',
+        after: async (v) => v && current && (await current.checkSgdbKey()) && sgdbKeyAdded(),
+      },
       { type: 'action', icon: 'refresh', label: 'Back to the API Page', run: () => current && current.reloadSgdb() },
     ],
   },
@@ -65,10 +108,19 @@ const STEPS = [
     section: 1,
     title: 'Connect Discord',
     sub: 'See your voice channel and party in the quick menu, mute and leave calls with the controller, and read your messages.',
-    art: 'discord',
+    // The Discord Developer Portal on the right, where the application the
+    // launcher signs in with is made; its Client ID and a new Client Secret
+    // are picked up by themselves (Setup.watchDiscord).
+    web: 'discord',
     onEnter: () => loadDiscord(),
     done: () => !!(party.state && party.state.configured),
-    rows: () => discordItems(),
+    desc: () =>
+      party.state && party.state.status === 'ready'
+        ? 'Discord is connected. Your voice channel and party are in the quick menu.'
+        : party.state && party.state.configured
+          ? 'Choose Connect to Discord, then Authorize in the Discord app on this PC.'
+          : 'The application is yours alone: it’s what lets the launcher see and control your voice. The secret is stored on this PC only.',
+    rows: () => discordSetupRows(),
   },
   {
     id: 'folders',
@@ -234,9 +286,11 @@ class Setup {
   async show(dir) {
     const st = this.step;
     this.busy = true;
-    // The SteamGridDB page (if it was up) goes with its step.
+    // The SteamGridDB page (if it was up) goes with its step, and its pointer.
     clearInterval(this.webTimer);
     this.web = null;
+    if (this.pointer) this.pointer.destroy();
+    this.pointer = null;
     if (dir) {
       this.page.classList.remove('in');
       this.page.classList.add('out');
@@ -329,19 +383,28 @@ class Setup {
   }
 
   /* ---------------------------------------------------------------- */
-  /* SteamGridDB in the setup                                          */
+  /* Web pages in the setup (SteamGridDB, the Discord Developer Portal) */
   /* ---------------------------------------------------------------- */
 
   /**
-   * SteamGridDB's own pages where the picture would be: the API page, which
-   * asks to sign in with Steam first. main/main.js keeps the view on
-   * SteamGridDB and Steam's sign-in pages, in a session of its own.
+   * A site's own pages where the picture would be: SteamGridDB's API page
+   * (which asks to sign in with Steam first), or Discord's applications.
+   * main/main.js keeps each view on its own sites, in a session of its own.
    */
-  buildWeb(url) {
+  buildWeb(kind) {
+    this.webKind = kind;
     this.webBox = h('div', { class: 'su-web loading' }, h('div', { class: 'su-web-load', html: '<span class="spinner"></span>' }));
-    this.mountWeb(url);
-    this.watchSgdb();
+    this.mountWeb(WEB[kind].home);
+    if (kind === 'sgdb') this.watchSgdb();
+    else this.watchDiscord();
+    // The right stick moves a pointer over the page (cross clicks, a text field gets the keyboard).
+    this.pointer = new WebPointer(this.webBox, { getWeb: () => this.web, onWake: () => this.setZone('web', true) });
     return this.webBox;
+  }
+
+  /** The page the step's view starts on, again. */
+  reloadWeb() {
+    if (this.web && this.webKind) this.web.loadURL(WEB[this.webKind].home).catch(() => {});
   }
 
   /**
@@ -352,16 +415,19 @@ class Setup {
    */
   mountWeb(url) {
     if (this.web) this.web.remove();
+    const { home, partition } = WEB[this.webKind];
     const web = document.createElement('webview');
     web.className = 'su-webview';
-    web.setAttribute('partition', 'persist:sgdb');
+    web.setAttribute('partition', partition);
     // "Login via Steam" opens a pop-up: main/main.js shows it in this same view instead (no window ever opens).
     web.setAttribute('allowpopups', '');
+    // As a plain Chrome (sites can turn away a browser they don't know).
+    web.setAttribute('useragent', navigator.userAgent.replace(/ (?:Electron|ps5[\w-]*)\/\S+/gi, ''));
     web.setAttribute('src', url);
     this.web = web;
     this.webBox.prepend(web);
     web.addEventListener('close', () => {
-      if (this.web === web) setTimeout(() => this.web === web && this.mountWeb(SGDB_API), 300);
+      if (this.web === web) setTimeout(() => this.web === web && this.mountWeb(home), 300);
     });
     // The spinner follows the page itself, not what it keeps loading in frames
     // (SteamGridDB's front page never stops: the spinner stayed up for good).
@@ -456,7 +522,7 @@ class Setup {
       if (!key || key.toLowerCase() === state.settings.sgdbKey || key.toLowerCase() === this.sgdbRejected) return;
       const before = state.settings.sgdbKey || '';
       await setSetting('sgdbKey', key.toLowerCase());
-      if (await this.checkSgdbKey()) sfx.select();
+      if (await this.checkSgdbKey()) await sgdbKeyAdded();
       else {
         // Not a key SteamGridDB knows: the one before stays.
         this.sgdbRejected = key.toLowerCase();
@@ -468,17 +534,11 @@ class Setup {
 
   /** The key picked up: does SteamGridDB take it? */
   async checkSgdbKey() {
-    let ok = true;
-    try {
-      await api.sgdbSearch('Portal');
-      this.sgdbError = null;
-    } catch (err) {
-      this.sgdbError = String((err && err.message) || err).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
-      // Only a key SteamGridDB turns down is wrong (not a moment without a connection).
-      ok = !/rejected/i.test(this.sgdbError);
-    }
+    const { ok, error } = await checkSgdbKey();
+    this.sgdbError = error;
     this.onRowFocus();
-    return ok;
+    // Only a key SteamGridDB turns down is wrong (not a moment without a connection).
+    return ok !== false;
   }
 
   /** "Generate API Key" on the page, for a controller (only when it shows no key yet). */
@@ -499,7 +559,95 @@ class Setup {
   }
 
   reloadSgdb() {
-    if (this.web) this.web.loadURL(SGDB_API).catch(() => {});
+    this.reloadWeb();
+  }
+
+  /**
+   * Once a second while the Discord Developer Portal is up: on one of the
+   * user's applications, its ID is the Client ID (taken while none is set
+   * up); on its OAuth2 page after Reset Secret, the new secret the page shows
+   * goes into the launcher with it.
+   */
+  watchDiscord() {
+    clearInterval(this.webTimer);
+    this.webTimer = setInterval(async () => {
+      if (!this.web || !this.web.isConnected) return clearInterval(this.webTimer);
+      let url = '';
+      try {
+        url = this.web.getURL();
+      } catch {
+        return;
+      }
+      this.webUrl = url;
+      const m = /^https:\/\/(?:www\.)?discord\.com\/developers\/applications\/(\d{15,22})(?:[/?#]|$)/i.exec(url);
+      if (!m) return;
+      const id = m[1];
+      this.discordApp = id;
+      const st = party.state || {};
+      if (!st.configured && st.clientId !== id && !this.discordBusy) {
+        this.discordBusy = true;
+        await discordSetup({ clientId: id });
+        this.discordBusy = false;
+      }
+      if (!/\/oauth2(?:[/?#]|$)/i.test(url)) return;
+      let secret = null;
+      try {
+        // The secret as the page shows it once, after Reset Secret: a line of
+        // 32 letters, digits, - and _ on its own (never the ID, all digits).
+        secret = await this.web.executeJavaScript(`(() => {
+          const re = /^[A-Za-z0-9_-]{32}$/;
+          const ok = (v) => re.test(v) && !/^[0-9]+$/.test(v);
+          const shown = (el) => el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden';
+          for (const el of document.querySelectorAll('input:not([type=hidden]), textarea')) if (ok((el.value || '').trim()) && shown(el)) return el.value.trim();
+          for (const el of document.querySelectorAll('code, pre, kbd, span, div, p, strong, b')) {
+            if (el.children.length) continue;
+            const v = (el.textContent || '').trim();
+            if (ok(v) && shown(el)) return v;
+          }
+          return null;
+        })()`);
+      } catch {}
+      // (Only a hash of it is kept, to know it's been taken.)
+      const seen = secret && (await digest(`${id}:${secret}`));
+      if (!secret || seen === this.discordSeen || this.discordBusy) return;
+      this.discordSeen = seen;
+      this.discordBusy = true;
+      const ok = await discordSetup({ clientId: id, secret });
+      this.discordBusy = false;
+      if (ok) {
+        pushNotification({
+          title: 'Discord Application Added',
+          body: 'Choose Connect to Discord to finish.',
+          icon: 'party',
+          kind: 'system',
+          duringSetup: true,
+        });
+      }
+      this.renderRows(true);
+    }, 1000);
+  }
+
+  /** "New Application" on the applications page, for a controller. */
+  async discordNewApp() {
+    if (!this.web) return;
+    if (!/\/developers\/applications\/?(?:[?#]|$)/i.test(this.webUrl || '')) {
+      this.reloadWeb();
+      return;
+    }
+    try {
+      await this.web.executeJavaScript(`(() => {
+        const b = [...document.querySelectorAll('button, a, [role=button]')].find((x) => /^\\s*new application\\s*$/i.test(x.textContent));
+        if (b) b.click();
+        return !!b;
+      })()`);
+    } catch {}
+  }
+
+  /** The application's OAuth2 page (or the applications, to pick one first). */
+  discordOAuth() {
+    if (!this.web) return;
+    if (this.discordApp) this.web.loadURL(`${DISCORD_APPS}/${this.discordApp}/oauth2`).catch(() => {});
+    else this.reloadWeb();
   }
 
   /** The step's rows (again, when something they show has changed). */
@@ -612,6 +760,7 @@ class Setup {
   setZone(zone, silent = false) {
     if (zone === this.zone) return;
     if (zone === 'list' && !(this.listNav && this.listNav.els.length)) return;
+    if (zone === 'web' && !this.pointer) return;
     this.zone = zone;
     if (!silent) sfx.move();
     this.applyZone();
@@ -623,6 +772,8 @@ class Setup {
     if (this.btnNav) this.btnNav.blur();
     if (this.zone === 'list' && this.listNav) this.listNav.refocus();
     if (this.zone === 'btns' && this.btnNav) this.btnNav.refocus();
+    if (this.pointer) this.zone === 'web' ? this.pointer.show() : this.pointer.hide();
+    this.renderHints();
   }
 
   async activate() {
@@ -652,7 +803,9 @@ class Setup {
   }
 
   renderHints() {
-    const list = this.index > 0 ? [['confirm', 'Select'], ['back', 'Back']] : [];
+    let list = this.index > 0 ? [['confirm', 'Select'], ['back', 'Back']] : [];
+    if (this.zone === 'web') list = [['rstick', 'Move'], ['confirm', 'Click'], ['back', 'Back']];
+    else if (this.pointer && getPromptStyle(state.settings.prompts) !== 'keyboard') list = [['rstick', 'Pointer'], ...list];
     this.hints.innerHTML = list.map(([a, label]) => `<span class="su-hint">${glyph(a)}<span>${escapeHtml(t(label))}</span></span>`).join('');
   }
 
@@ -673,6 +826,8 @@ class Setup {
   async finish() {
     this.busy = true;
     clearInterval(this.webTimer);
+    if (this.pointer) this.pointer.destroy();
+    this.pointer = null;
     await setSetting('setupDone', true);
     this.el.classList.add('leaving');
     document.body.classList.remove('in-setup');
@@ -691,6 +846,27 @@ class Setup {
   handle(action) {
     unlockAudio();
     if (this.busy) return;
+    // On the page: the pointer's buttons; Back (or left / right) leaves it.
+    if (this.zone === 'web') {
+      switch (action) {
+        case 'confirm':
+          this.pointer.click();
+          return;
+        case 'up':
+        case 'down':
+          this.pointer.scroll(action === 'up' ? -1 : 1);
+          return;
+        case 'back':
+        case 'left':
+          this.setZone('list');
+          return;
+        case 'right':
+          this.setZone('btns');
+          return;
+      }
+      sfx.bump();
+      return;
+    }
     if (action === 'back') {
       if (this.index > 0) this.go(-1);
       else sfx.bump();

@@ -903,7 +903,14 @@ export function buildSchema(router) {
                 { value: 'sgdb', label: 'SteamGridDB' },
               ],
             },
-            { type: 'text', key: 'sgdbKey', label: 'SteamGridDB API Key', secret: true, placeholder: 'Paste or type your key' },
+            {
+              type: 'text',
+              key: 'sgdbKey',
+              label: 'SteamGridDB API Key',
+              secret: true,
+              placeholder: 'Paste or type your key',
+              after: async (v) => (await import('../ui/sgdbkey.js')).sgdbKeyEntered(v),
+            },
             { type: 'action', label: 'Get a SteamGridDB API Key', icon: 'external', run: () => api.openExternal('https://www.steamgriddb.com/profile/preferences/api') },
             {
               type: 'action',

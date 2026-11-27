@@ -189,8 +189,9 @@
 }
 
 /* ---- Floating (ui/dialogs.js textDialog): a window with the field on top,
-   placed next to what it's for. It fades in over 0.17 s, the keys a moment
-   after the frame, as on the PS5. */
+   placed next to what it's for. It comes in as the PS5's, measured frame by
+   frame: faded in and grown from 96.7 % to full size about its middle, all
+   of it at once, over 0.15 s and speeding up (an ease-in, quadratic). */
 .okb-overlay {
   background: rgba(0, 0, 0, 0);
   transition: background 0.2s var(--ease);
@@ -208,25 +209,20 @@
   backdrop-filter: blur(2.4rem);
   box-shadow: 0 2.4rem 7rem rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
   opacity: 0;
-  transition: opacity 0.17s var(--ease);
+  transform: scale(0.967);
+  transform-origin: 50% 50%;
+  transition: opacity 0.15s cubic-bezier(0.11, 0, 0.5, 0), transform 0.15s cubic-bezier(0.11, 0, 0.5, 0);
 }
 
 .okb-overlay.open .okb {
   opacity: 1;
-}
-
-.okb .osk-keys {
-  opacity: 0;
-  transition: opacity 0.13s var(--ease) 0.05s;
-}
-
-.okb-overlay.open .okb .osk-keys {
-  opacity: 1;
+  transform: none;
 }
 
 .okb-overlay.closing .okb {
   opacity: 0;
-  transition-duration: 0.12s;
+  transform: none;
+  transition: opacity 0.12s var(--ease);
 }
 
 .okb-field {

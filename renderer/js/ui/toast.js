@@ -8,10 +8,11 @@ import { t } from '../i18n.js';
 
 const box = document.getElementById('toasts');
 
-export function toast({ title, body = '', icon: ic = 'bell', image = null, duration = 4600, sound = true, preview = true, kind = 'system' }) {
+export function toast({ title, body = '', icon: ic = 'bell', image = null, duration = 4600, sound = true, preview = true, kind = 'system', duringSetup = false }) {
   if (!preview) body = '';
   const el = h('div', {
-    class: 'toast',
+    // (The first-time setup holds pop-ups back, except the ones about the setup itself.)
+    class: `toast${duringSetup ? ' during-setup' : ''}`,
     html: `
       <div class="toast-icon">${image ? `<img src="${escapeHtml(image)}" alt="">` : icon(ic)}</div>
       <div class="toast-text">

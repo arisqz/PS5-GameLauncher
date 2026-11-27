@@ -1,6 +1,6 @@
 import { $, h } from './util.js';
 import { state, on, emit, loadState, api, pushNotification } from './state.js';
-import { setHandler, externalAction, setGamepadPolling, setGamepadProbe, useGamepadApi } from './input.js';
+import { setHandler, externalAction, externalStick, setGamepadPolling, setGamepadProbe, useGamepadApi } from './input.js';
 import { sfx, configureSound, setAmbient, unlockAudio, resetAudio, setSoundPacks } from './sound.js';
 import { themeActive, setThemeConditions } from './thememusic.js';
 import { background } from './background.js';
@@ -270,6 +270,7 @@ async function main() {
       if (!booting) externalAction('guide');
     } else if (action && ((state.passthrough && state.passthrough.enabled) || padFallback || passthroughStarting)) externalAction(action, { repeat: !!(a && a.repeat), kind: a && a.kind });
   });
+  api.on('pad:stick', (s) => s && externalStick(s.x, s.y));
   // Passthrough is being switched on (at startup): the controller's presses
   // come through the helper already, so it can be used right away.
   let passthroughStarting = !!state.settings.controllerPassthrough;

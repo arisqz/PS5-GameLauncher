@@ -145,7 +145,7 @@ contextBridge.exposeInMainWorld('api', {
   pathForFile: (file) => webUtils.getPathForFile(file),
 
   on(channel, cb) {
-    const allowed = ['library:changed', 'scan:progress', 'notify', 'game:exited', 'game:running', 'window:state', 'settings:changed', 'discord:state', 'steamfriends:state', 'update:state', 'ytdlp:state', 'theme:fetch', 'navigate', 'pad:action', 'overlay:open', 'overlay:close', 'overlay:hidden', 'overlay:toast', 'game:started', 'discord:message', 'discord:chat', 'passthrough:state', 'dualsense:state', 'storage:changed', 'capture:state', 'capture:saved', 'app:sleep', 'downloads:state'];
+    const allowed = ['library:changed', 'scan:progress', 'notify', 'game:exited', 'game:running', 'window:state', 'settings:changed', 'discord:state', 'steamfriends:state', 'update:state', 'ytdlp:state', 'theme:fetch', 'navigate', 'pad:action', 'pad:stick', 'overlay:open', 'overlay:close', 'overlay:hidden', 'overlay:toast', 'game:started', 'discord:message', 'discord:chat', 'passthrough:state', 'dualsense:state', 'storage:changed', 'capture:state', 'capture:saved', 'app:sleep', 'downloads:state'];
     if (!allowed.includes(channel)) return () => {};
     const fn = (_e, payload) => cb(payload);
     ipcRenderer.on(channel, fn);

@@ -3827,7 +3827,9 @@ namespace PS5GameLauncher
                             if (bit == SELECT && src.StartsWith("h")) Emit("share", null, false);
                             if (Forward) Emit("pad", Names[i], false);
                         }
-                        if (bit <= RIGHT)
+                        // Held, these repeat. Square and cross too (deleting on the on-screen
+                        // keyboard): the launcher drops their repeats everywhere else.
+                        if (bit <= RIGHT || bit == X || bit == CONFIRM)
                         {
                             HoldSince[key] = Now();
                             NextRepeat[key] = Now() + 380;
@@ -3841,6 +3843,33 @@ namespace PS5GameLauncher
                         RepeatCount.Remove(key);
                     }
                 }
+            }
+        }
+
+        // The right stick, for the launcher's pointer (the setup's web page): about
+        // 30 times a second while it's pushed, then one "let go" (x = y = 0).
+        static readonly Dictionary<string, double[]> Sticks = new Dictionary<string, double[]>();
+        static long lastStickEmit;
+        static bool stickOut;
+
+        /// <summary>The right stick of one controller, -1..1 each way (y down).</summary>
+        public static void Stick(string src, double x, double y)
+        {
+            if (!Forward) return;
+            lock (Gate)
+            {
+                Sticks[src] = new[] { x, y };
+                // The controller pushed furthest counts.
+                double bx = 0, by = 0;
+                foreach (var v in Sticks.Values) if (v[0] * v[0] + v[1] * v[1] > bx * bx + by * by) { bx = v[0]; by = v[1]; }
+                var outNow = bx * bx + by * by > 0.15 * 0.15;
+                if (!outNow && !stickOut) return;
+                var now = Now();
+                if (outNow && now - lastStickEmit < 33) return;
+                lastStickEmit = now;
+                stickOut = outNow;
+                var d = new Dictionary<string, object> { { "event", "stick" }, { "x", outNow ? Math.Round(bx, 3) : 0.0 }, { "y", outNow ? Math.Round(by, 3) : 0.0 } };
+                Program.Emit(d);
             }
         }
 
@@ -4115,6 +4144,7 @@ namespace PS5GameLauncher
                         if ((b & 0x4000) != 0) m |= X;
                         if ((b & 0x8000) != 0) m |= Y;
                         Update("x" + i, m);
+                        Stick("x" + i, st.Gamepad.sThumbRX / 32768.0, -st.Gamepad.sThumbRY / 32768.0);
                     }
                 }
                 Repeats();
@@ -4347,8 +4377,13 @@ namespace PS5GameLauncher
                     {
                         int read;
                         if (!ReadFile(h, buf, len, out read, IntPtr.Zero) || read <= 0) break;
-                        var mask = ParsePs(buf, read, pid, bt);
-                        if (mask >= 0) Update(src, mask);
+                        int rx, ry;
+                        var mask = ParsePs(buf, read, pid, bt, out rx, out ry);
+                        if (mask >= 0)
+                        {
+                            Update(src, mask);
+                            Stick(src, (rx - 128) / 128.0, (ry - 128) / 128.0);
+                        }
                         PadInfo.OnReport(path, buf, read);
                         Passthrough.OnReport(path, pid, buf, read);
                     }
@@ -4364,8 +4399,9 @@ namespace PS5GameLauncher
             }
         }
 
-        static int ParsePs(byte[] b, int n, string pid, bool bt)
+        static int ParsePs(byte[] b, int n, string pid, bool bt, out int rx, out int ry)
         {
+            rx = ry = 128;
             var dualsense = pid == "0ce6" || pid == "0df2";
             int lx, ly, b0, b1, b2;
             if (dualsense)
@@ -4382,6 +4418,9 @@ namespace PS5GameLauncher
                 else if (b[0] == 0x11 && n >= 10) { lx = 3; ly = 4; b0 = 7; b1 = 8; b2 = 9; }    // DS4 Bluetooth
                 else return -1;
             }
+            // The right stick comes straight after the left one in every layout.
+            rx = b[lx + 2];
+            ry = b[ly + 2];
             var m = 0;
             var hat = b[b0] & 0x0F;
             if (hat == 7 || hat == 0 || hat == 1 || b[ly] < 50) m |= UP;

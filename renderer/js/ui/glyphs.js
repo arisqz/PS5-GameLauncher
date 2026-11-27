@@ -31,6 +31,7 @@ const MAP = {
     r2: ['RT', ''],
     adjust: [DPAD, 'kb'],
     scroll: ['LS', 'round scroll-stick'],
+    rstick: ['RS', 'round scroll-stick'],
   },
   ps: {
     confirm: [PS_SHAPES.cross, 'round'],
@@ -46,6 +47,7 @@ const MAP = {
     r2: ['R2', ''],
     adjust: [DPAD, 'kb'],
     scroll: ['L', 'round scroll-stick'],
+    rstick: ['R', 'round scroll-stick'],
   },
   keyboard: {
     confirm: ['Enter', 'kb'],
