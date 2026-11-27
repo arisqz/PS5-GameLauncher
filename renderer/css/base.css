@@ -893,7 +893,7 @@ html.font-sst {
 /* The PS5's emphasis: the selected Games / Media tab and the hub's buttons are
    medium; a game's name and the hub's card headings are light like the rest.
    Play fills its button as on the PS5 (text 0.39 of its height, measured). */
-html.font-sst .tb-tab.active,
+html.font-sst .tb-tab-name.sel,
 html.font-sst .hub-btn {
   font-weight: 600;
 }

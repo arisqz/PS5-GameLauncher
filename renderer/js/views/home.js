@@ -55,7 +55,12 @@ export class HomeView {
   }
 
   build() {
-    this.tabs = [h('button', { class: 'tb-tab fx', text: t('Games'), dataset: { tab: 'game' } }), h('button', { class: 'tb-tab fx', text: t('Media'), dataset: { tab: 'media' } })];
+    // Each tab holds its name twice, plain and as when selected, in the same
+    // spot: the tab is always as wide as the selected name (no resizing when
+    // the selection moves), and the two cross-fade (see home.css).
+    const tab = (id, name) =>
+      h('button', { class: 'tb-tab fx', dataset: { tab: id }, 'aria-label': name }, h('span', { class: 'tb-tab-name', text: name }), h('span', { class: 'tb-tab-name sel', text: name, 'aria-hidden': 'true' }));
+    this.tabs = [tab('game', t('Games')), tab('media', t('Media'))];
     this.searchBtn = h('button', { class: 'tb-icon fx', html: icon('tbSearch'), title: 'Search' });
     this.settingsBtn = h('button', { class: 'tb-icon fx', html: icon('tbSettings'), title: 'Settings' });
     this.profileBtn = h('button', { class: 'tb-icon tb-profile fx', title: 'Profile' });
