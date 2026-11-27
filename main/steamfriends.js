@@ -82,10 +82,15 @@ class SteamFriends {
 
   /** Save the Web API key (typed, or from the clipboard), then load the friends. */
   async setKey({ key, fromClipboard = false } = {}) {
-    const text = String(fromClipboard ? clipboard.readText() : key || '').trim();
-    if (!/^[0-9A-Fa-f]{32}$/.test(text)) {
+    // The key is picked out of whatever was copied or typed: Steam's key page
+    // shows it as "Key: …" next to the domain name, and selecting that line
+    // (or the whole box) copies the label and line breaks too, sometimes with
+    // invisible characters around it.
+    const found = String(fromClipboard ? clipboard.readText() : key || '').match(/(?<![0-9A-Fa-f])[0-9A-Fa-f]{32}(?![0-9A-Fa-f])/);
+    if (!found) {
       throw new Error(fromClipboard ? 'The clipboard has no Steam Web API key (32 letters and numbers).' : 'A Steam Web API key is 32 letters and numbers (0-9, A-F).');
     }
+    const text = found[0];
     this.creds.key = safeStorage.isEncryptionAvailable()
       ? { enc: true, v: safeStorage.encryptString(text.toUpperCase()).toString('base64') }
       : { enc: false, v: Buffer.from(text.toUpperCase(), 'utf8').toString('base64') };
