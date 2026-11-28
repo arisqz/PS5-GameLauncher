@@ -59,12 +59,15 @@ let cursorTimer = null;
 let suppressMouseUntil = 0;
 
 // The last move (up/down/left/right) and when: the focus ring's arrival flash
-// runs in its direction (ui/focusfx.js).
+// runs in its direction (ui/focusfx.js), and so does the focus wave (ui/overlay.js).
 let lastMove = { dir: null, at: 0 };
+const DIR_ANGLE = { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0 };
+let lastDir = null;
 
 export function setHandler(fn) {
   handler = (action, info) => {
     if (REPEATABLE.has(action)) lastMove = { dir: action, at: performance.now() };
+    lastDir = Object.hasOwn(DIR_ANGLE, action) ? { angle: DIR_ANGLE[action], at: performance.now() } : null;
     lastAny = { action, at: performance.now() };
     return fn(action, info);
   };
@@ -78,6 +81,14 @@ export function lastAction() {
 
 export function recentMove(within = 150) {
   return performance.now() - lastMove.at <= within ? lastMove.dir : null;
+}
+
+/**
+ * Angle (radians, 0 = right, PI/2 = down) of the move just pressed, or null
+ * if the last press (within maxAge ms) wasn't a move.
+ */
+export function lastMoveAngle(maxAge = 250) {
+  return lastDir && performance.now() - lastDir.at <= maxAge ? lastDir.angle : null;
 }
 
 export function getDevice() {

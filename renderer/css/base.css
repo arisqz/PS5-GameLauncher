@@ -805,93 +805,41 @@ html.windowed .boot {
 }
 
 /* ------------------------------------------------------------------ */
-/* List move wave (FocusList): a curved band of light sweeps across the  */
-/* newly selected row, downwards or upwards with the move.               */
+/* Focus move wave (see playWave in ui/overlay.js): light shaped like    */
+/* the item, its leading sides bowed and corners rounded, sweeps across  */
+/* the newly focused element the way focus moved, at any angle, always   */
+/* square to the item. Sizes are set from JS in container units of       */
+/* .fx-wave, which fills the host, so the light follows it as it resizes. */
 /* ------------------------------------------------------------------ */
 .fx-wave {
   position: absolute;
   inset: 0;
-  border-radius: inherit;
+  border-radius: var(--fx-r);
   overflow: hidden;
   pointer-events: none;
   z-index: 1;
+  container-type: size;
 }
 
-.fx-wave::before {
-  content: "";
+/* Fills the wave box; moved by JS against a host that is still sliding
+   into place. */
+.fx-wave-frame {
   position: absolute;
-  left: -15%;
-  right: -15%;
-  height: 160%;
-  top: -160%;
-  opacity: 0;
-  /* the lower edge of a wide ellipse: a soft, slightly curved arc of light */
-  background: radial-gradient(60% 50% at 50% 0%, transparent 62%, rgba(255, 255, 255, 0.3) 76%, rgba(255, 255, 255, 0.1) 86%, transparent 94%);
-  filter: blur(0.4rem);
+  inset: 0;
+  transform-origin: 0 0;
 }
 
-.fx-wave.up::before {
-  background: radial-gradient(60% 50% at 50% 100%, transparent 62%, rgba(255, 255, 255, 0.3) 76%, rgba(255, 255, 255, 0.1) 86%, transparent 94%);
+/* The light: a copy of the item's box that slides in along the move (see
+   playWave); it clips the fill to its bowed leading sides. */
+.fx-wave-light {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 
-.fx-wave.run.down::before {
-  animation: fxWaveDown 0.22s cubic-bezier(0.3, 0.5, 0.4, 1) both;
-}
-
-.fx-wave.run.up::before {
-  animation: fxWaveUp 0.22s cubic-bezier(0.3, 0.5, 0.4, 1) both;
-}
-
-/* Sideways (a row of items, e.g. the quick menu's Customize): a soft vertical band. */
-.fx-wave.left::before,
-.fx-wave.right::before {
-  top: -15%;
-  bottom: -15%;
-  height: auto;
-  width: 160%;
-  left: -160%;
-  right: auto;
-  background: radial-gradient(50% 60% at 0% 50%, transparent 62%, rgba(255, 255, 255, 0.3) 76%, rgba(255, 255, 255, 0.1) 86%, transparent 94%);
-}
-
-.fx-wave.left::before {
-  background: radial-gradient(50% 60% at 100% 50%, transparent 62%, rgba(255, 255, 255, 0.3) 76%, rgba(255, 255, 255, 0.1) 86%, transparent 94%);
-}
-
-.fx-wave.run.right::before {
-  animation: fxWaveRight 0.26s cubic-bezier(0.3, 0.5, 0.4, 1) both;
-}
-
-.fx-wave.run.left::before {
-  animation: fxWaveLeft 0.26s cubic-bezier(0.3, 0.5, 0.4, 1) both;
-}
-
-@keyframes fxWaveRight {
-  0% { left: -150%; opacity: 0; }
-  12% { opacity: 1; }
-  65% { opacity: 0.85; }
-  100% { left: 40%; opacity: 0; }
-}
-
-@keyframes fxWaveLeft {
-  0% { left: 90%; opacity: 0; }
-  12% { opacity: 1; }
-  65% { opacity: 0.85; }
-  100% { left: -100%; opacity: 0; }
-}
-
-@keyframes fxWaveDown {
-  0% { top: -150%; opacity: 0; }
-  12% { opacity: 1; }
-  65% { opacity: 0.85; }
-  100% { top: 40%; opacity: 0; }
-}
-
-@keyframes fxWaveUp {
-  0% { top: 90%; opacity: 0; }
-  12% { opacity: 1; }
-  65% { opacity: 0.85; }
-  100% { top: -100%; opacity: 0; }
+.fx-wave-fill {
+  position: absolute;
+  inset: 0;
 }
 
 .reduce-motion .fx-wave {
